@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>本地图片库</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">本机 · Gemma 3</p>
+      <h1>本地图片库</h1>
+      <p class="lede">Gemma 3 在这台电脑上看图、写标签。你改过的标签会留下来，后面的图片会优先沿用。</p>
+    </div>
+    <div class="model-box">
+      <p id="modelStatus" class="status">正在检查模型</p>
+      <button id="pull" type="button" hidden>下载模型</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="folder-row">
+      <label class="grow" for="folder">图片文件夹</label>
+      <input id="folder" type="text" spellcheck="false" placeholder="例如 D:\照片\旅行" />
+      <button id="pick" type="button">选择</button>
+      <button id="index" class="primary" type="button">开始识别</button>
+    </div>
+    <label class="check" for="force">
+      <input id="force" type="checkbox" />
+      重新识别还没改过标签的图片
+    </label>
+    <div id="job" class="job" hidden>
+      <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+      <p id="jobText"></p>
+    </div>
+  </section>
+
+  <section class="find">
+    <label for="q">按标签取图</label>
+    <div class="find-row">
+      <input id="q" type="search" placeholder="输入标签，例如：海边、猫、暖色" />
+      <div class="match" role="group" aria-label="匹配方式">
+        <button type="button" data-match="all" class="on">包含全部</button>
+        <button type="button" data-match="any">包含任一</button>
+      </div>
+    </div>
+    <div id="cloud" class="cloud"></div>
+  </section>
+
+  <p id="count" class="count"></p>
+  <div id="grid" class="grid"></div>
+  <p id="empty" class="empty" hidden></p>
+
+  <div id="modal" class="modal" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button id="closeModal" class="close" type="button">关闭</button>
+      <img id="modalImg" alt="" />
+      <div class="detail">
+        <h2 id="modalTitle"></h2>
+        <p id="modalCaption"></p>
+        <label for="modalTags">标签</label>
+        <input id="modalTags" type="text" />
+        <p class="hint">用顿号或空格分开。保存后，这些叫法会优先用在后面的图片上。</p>
+        <div class="actions">
+          <button id="saveTags" class="primary" type="button">保存标签</button>
+          <button id="resee" type="button">重新识别</button>
+          <button id="reveal" type="button">在文件夹中显示</button>
+          <button id="remove" class="quiet" type="button">从库中移除</button>
+        </div>
+        <p id="modalPath" class="path"></p>
+        <p id="modalMsg" class="msg"></p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>命令行取图 <code>python app.py search 海边 猫</code></p>
+  </footer>
+  <script src="/app.js"></script>
+</body>
+</html>
