@@ -18,11 +18,11 @@ def main() -> int:
     tagger = JewelryTagger(model_id="google/gemma-3-4b-it", device="auto")
     if len(sys.argv) == 2:
         tags = tagger.tag(sys.argv[1])
-        print(json.dumps(tags.model_dump(), ensure_ascii=False, indent=2))
+        print(json.dumps(tags.as_json(), ensure_ascii=False, indent=2))
         return 0
     results = tagger.tag_many(sys.argv[1:], batch_size=2, workers=4)
     payload = [
-        {"source": item.source, "error": item.error, "tags": None if item.tags is None else item.tags.model_dump()}
+        {"source": item.source, "error": item.error, "tags": None if item.tags is None else item.tags.as_json()}
         for item in results
     ]
     print(json.dumps(payload, ensure_ascii=False, indent=2))

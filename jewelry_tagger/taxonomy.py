@@ -113,7 +113,10 @@ def load_taxonomy(path: str | Path | None = None) -> Taxonomy:
     config_path = Path(path) if path else DEFAULT_CONFIG
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     axes = {name: _build_axis(name, spec) for name, spec in (data.get("axes") or {}).items()}
-    required = {"category", "material", "cut", "design", "motif", "fineness", "style", "occasion", "background", "angle", "lighting"}
+    required = {
+        "category", "sub_category", "material", "gemstone", "metal_color", "style",
+        "stone_shape", "setting", "occasion", "audience", "brand_hint", "era",
+    }
     missing = required - set(axes)
     if missing:
         raise ValueError("配置缺少标签轴：" + "、".join(sorted(missing)))

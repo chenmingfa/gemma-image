@@ -51,6 +51,26 @@ def _download(url: str) -> bytes:
     return b"".join(chunks)
 
 
+def _resize(image: Image.Image, max_side: int) -> Image.Image:
+    if max(image.size) <= max_side:
+        return image
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        image.thumbnail((max_side, max_side))
+        return image
+    array = np.array(image)
+    height, width = array.shape[:2]
+    scale = max_side / max(height, width)
+    resized = cv2.resize(
+        array,
+        (max(1, int(width * scale)), max(1, int(height * scale))),
+        interpolation=cv2.INTER_AREA,
+    )
+    return Image.fromarray(resized)
+
+
 def _decode(data: bytes, name: str, max_side: int) -> Image.Image:
     try:
         with Image.open(io.BytesIO(data)) as image:
@@ -63,9 +83,7 @@ def _decode(data: bytes, name: str, max_side: int) -> Image.Image:
                 raise ImageSourceError(f"只支持 JPG、PNG、WEBP，这张是 {fmt or '未知格式'}：{name}")
             rgb = image.convert("RGB")
             rgb.load()
-            if max(rgb.size) > max_side:
-                rgb.thumbnail((max_side, max_side))
-            return rgb.copy()
+            return _resize(rgb, max_side).copy()
     except ImageSourceError:
         raise
     except (UnidentifiedImageError, OSError) as exc:

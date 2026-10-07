@@ -57,19 +57,30 @@ results = tagger.tag_many(["a.jpg", "b.png"], batch_size=2, workers=4)
 
 ```json
 {
-  "category": {"main": "ring", "confidence": 0.95},
-  "material": [{"name": "gold", "confidence": 0.9}, {"name": "diamond", "confidence": 0.88}],
-  "cut": {"name": "brilliant", "confidence": 0.85},
-  "design": ["solitaire"],
-  "motif": ["floral"],
-  "fineness": ["k18"],
-  "style": ["luxury", "classic"],
+  "category": "ring",
+  "sub_category": "engagement_ring",
+  "material": ["18K金", "铂金"],
+  "gemstone": ["钻石", "蓝宝石"],
+  "metal_color": "white_gold",
+  "style": ["vintage", "art_deco"],
+  "stone_shape": "emerald_cut",
+  "setting": "pave",
   "occasion": ["wedding", "engagement"],
-  "color": {"primary": "#FFD700", "secondary": ["#FFFFFF"]},
-  "visual": {"background": "gradient", "angle": "45_degree", "lighting": "soft"},
-  "caption": "一枚黄金镶圆形钻石的订婚戒指"
+  "audience": "women",
+  "brand_hint": null,
+  "era": "art_deco",
+  "confidence": 0.92,
+  "tags": ["奢华", "复古", "婚戒", "群镶"]
 }
 ```
+
+启动接口：
+
+```
+.venv\Scripts\python -m jewelry_tagger --serve --model google/gemma-3-4b-it
+```
+
+`POST /v1/tag` 上传 JPG、PNG 或 WEBP。`POST /v1/tag/url` 传 `{"url": "https://..."}`。已有 vLLM 服务时加上 `--backend vllm --vllm-url http://127.0.0.1:8000/v1`。12B、27B 把模型名换成 `google/gemma-3-12b-it` 或 `google/gemma-3-27b-it`。
 
 ## 扩展标签
 

@@ -5,47 +5,48 @@ from __future__ import annotations
 from jewelry_tagger.taxonomy import Axis, Taxonomy
 
 _SKELETON = """{
-  "category": {"main": "ring", "confidence": 0.95},
-  "material": [{"name": "gold", "confidence": 0.9}, {"name": "diamond", "confidence": 0.88}],
-  "cut": {"name": "brilliant", "confidence": 0.85},
-  "design": ["solitaire"],
-  "motif": ["floral"],
-  "fineness": ["k18"],
-  "style": ["luxury", "classic"],
+  "category": "ring",
+  "sub_category": "engagement_ring",
+  "material": ["18K金", "铂金"],
+  "gemstone": ["钻石", "蓝宝石"],
+  "metal_color": "white_gold",
+  "style": ["vintage", "art_deco"],
+  "stone_shape": "emerald_cut",
+  "setting": "pave",
   "occasion": ["wedding", "engagement"],
-  "color": {"primary": "#FFD700", "secondary": ["#FFFFFF"]},
-  "visual": {"background": "gradient", "angle": "45_degree", "lighting": "soft"},
-  "caption": "一枚黄金镶圆形钻石的订婚戒指"
+  "audience": "women",
+  "brand_hint": null,
+  "era": "art_deco",
+  "confidence": 0.92,
+  "tags": ["奢华", "复古", "婚戒", "群镶"]
 }"""
 
 
 def build_prompt(taxonomy: Taxonomy) -> str:
     lines = [
         "你在给珠宝图片写检索标签。只输出 JSON，不要 Markdown，不要解释。",
-        "看不清的金属、克拉数、印记不要编造。白金(white_gold)和铂金(platinum)分不清就不要写。",
-        "没有宝石时 cut 必须是 null。有宝石时 cut 只写能确认的切工。",
-        "design 是款式形状，至少写一个，而且必须属于当前品类。看得到几种形状就写几种。",
-        "motif 是款式上的物体或纹样，至少写一个。没有纹样就写 plain。",
-        "fineness 是成色，至少写一个。印记看不清就写 unknown，不要猜 K 数。",
-        "caption 用一句简体中文，不超过 40 字，只写画面里看得到的珠宝。",
-        "颜色用 #RRGGBB。置信度是 0 到 1 的小数。",
+        "看不清的克拉数、印记、品牌不要编造。没有商标就让 brand_hint 为 null。",
+        "没有宝石时 gemstone 用空数组，stone_shape 和 setting 为 null。",
+        "sub_category 是款式形状，必须写一个，而且只能选当前品类下面的词。",
+        "material、gemstone、tags 用中文。其余字段用英文 id。confidence 是 0 到 1 的小数。",
         "id 必须从下面的列表里选，不要发明新词。",
         "",
-        _axis_line(taxonomy.axis("category"), "珠宝类别，只选一个"),
-        _axis_line(taxonomy.axis("material"), "材质，可多项，金属和宝石都写在这里"),
-        _axis_line(taxonomy.axis("cut"), "宝石切割，只选一个；没有宝石则 null。这里的 emerald 是祖母绿式切割，不是宝石"),
+        _axis_line(taxonomy.axis("category"), "品类，只选一个"),
         _axis_line(
-            taxonomy.axis("design"),
-            "款式形状，可多项，只选和品类相符的",
+            taxonomy.axis("sub_category"),
+            "款式形状，只选一个，必须属于品类",
             {item.id: item.zh for item in taxonomy.axis("category").options},
         ),
-        _axis_line(taxonomy.axis("motif"), "物体，可多项，写款式上看得见的纹样或构件"),
-        _axis_line(taxonomy.axis("fineness"), "成色，可多项"),
-        _axis_line(taxonomy.axis("style"), "风格，可多项"),
+        _axis_line(taxonomy.axis("material"), "材质，可多项，输出中文"),
+        _axis_line(taxonomy.axis("gemstone"), "宝石类型，可多项，没有就空数组，输出中文"),
+        _axis_line(taxonomy.axis("metal_color"), "金属颜色，只选一个，看不清则 null"),
+        _axis_line(taxonomy.axis("style"), "工艺风格，可多项"),
+        _axis_line(taxonomy.axis("stone_shape"), "主石形状，只选一个，没有主石则 null"),
+        _axis_line(taxonomy.axis("setting"), "镶嵌方式，只选一个，没有宝石则 null"),
         _axis_line(taxonomy.axis("occasion"), "使用场景，可多项"),
-        _axis_line(taxonomy.axis("background"), "背景"),
-        _axis_line(taxonomy.axis("angle"), "拍摄角度"),
-        _axis_line(taxonomy.axis("lighting"), "光影"),
+        _axis_line(taxonomy.axis("audience"), "目标人群，只选一个"),
+        _axis_line(taxonomy.axis("brand_hint"), "品牌特征，只选一个，看不清商标则 null，不要猜品牌名"),
+        _axis_line(taxonomy.axis("era"), "年代或流派，只选一个，看不出则 null"),
     ]
     for axis in taxonomy.extra_axes.values():
         kind = "可多项" if axis.multiple else "只选一个"

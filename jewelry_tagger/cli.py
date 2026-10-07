@@ -15,15 +15,20 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="用 Gemma 3 给珠宝图片写结构化标签")
-    parser.add_argument("images", nargs="+", help="本地路径或 http(s) URL，支持 JPG、PNG、WEBP")
-    parser.add_argument("--model", default="google/gemma-3-4b-it", help="google/gemma-3-4b-it 或 google/gemma-3-27b-it")
+    parser.add_argument("images", nargs="*", help="本地路径或 http(s) URL，支持 JPG、PNG、WEBP")
+    parser.add_argument("--model", default="google/gemma-3-4b-it", help="google/gemma-3-4b-it、12b-it 或 27b-it")
     parser.add_argument("--device", default="auto", choices=["auto", "cuda", "mps", "cpu"])
+    parser.add_argument("--backend", default="transformers", choices=["transformers", "vllm"])
+    parser.add_argument("--vllm-url", default="http://127.0.0.1:8000/v1")
     parser.add_argument("--config", default=None, help="标签体系 YAML，默认使用 configs/jewelry_tags.yaml")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--workers", type=int, default=4, help="同时读取图片的线程数")
     parser.add_argument("--retries", type=int, default=3)
-    parser.add_argument("--max-new-tokens", type=int, default=700)
+    parser.add_argument("--max-new-tokens", type=int, default=800)
     parser.add_argument("--pan-and-scan", action="store_true", help="高分辨率珠宝图切开再看，更慢、更清楚")
+    parser.add_argument("--serve", action="store_true", help="启动 FastAPI，默认 http://127.0.0.1:8780")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("-o", "--output", help="把 JSON 写入文件")
     args = parser.parse_args(argv)
 
@@ -34,14 +39,25 @@ def main(argv: list[str] | None = None) -> int:
         retries=args.retries,
         max_new_tokens=args.max_new_tokens,
         pan_and_scan=args.pan_and_scan,
+        backend=args.backend,
+        vllm_url=args.vllm_url,
     )
+    if args.serve:
+        import uvicorn
+
+        from jewelry_tagger.api import create_app
+
+        uvicorn.run(create_app(tagger), host=args.host, port=args.port)
+        return 0
+    if not args.images:
+        parser.error("请给出图片路径，或加上 --serve 启动接口")
     results = tagger.tag_many(args.images, batch_size=args.batch_size, workers=args.workers)
     payload = [
         {
             "source": item.source,
             "attempts": item.attempts,
             "error": item.error,
-            "tags": None if item.tags is None else item.tags.model_dump(),
+            "tags": None if item.tags is None else item.tags.as_json(),
         }
         for item in results
     ]

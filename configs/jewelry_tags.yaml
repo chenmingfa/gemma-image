@@ -1,6 +1,5 @@
-# 珠宝标签体系。改这个文件即可扩展，不必改模型代码。
-# 每一项 id 是 JSON 里的英文值，zh 是给模型看的中文，en 是别名。
-# 模型输出 id。中文或英文别名会在解析时收成 id。
+# 珠宝多标签词表。id 写进 JSON；材质和宝石输出中文 zh。
+# categories 用来限制款式只能属于对应品类。
 version: 1
 
 axes:
@@ -15,167 +14,160 @@ axes:
       - {id: brooch, zh: 胸针, en: brooch}
       - {id: pendant, zh: 吊坠, en: pendant}
       - {id: anklet, zh: 脚链, en: anklet}
+      - {id: crown, zh: 皇冠, en: crown}
+      - {id: cufflink, zh: 袖扣, en: cufflink}
+
+  sub_category:
+    multiple: false
+    options:
+      - {id: engagement_ring, zh: 订婚戒, en: engagement ring, categories: [ring]}
+      - {id: wedding_band, zh: 婚戒, en: wedding band, categories: [ring]}
+      - {id: solitaire, zh: 单石戒, en: solitaire, categories: [ring]}
+      - {id: halo_ring, zh: 光环戒, en: halo ring, categories: [ring]}
+      - {id: eternity, zh: 排戒, en: eternity, categories: [ring]}
+      - {id: three_stone, zh: 三石戒, en: three stone, categories: [ring]}
+      - {id: cocktail, zh: 鸡尾酒戒, en: cocktail, categories: [ring]}
+      - {id: choker, zh: 锁骨链, en: choker, categories: [necklace]}
+      - {id: pendant_necklace, zh: 吊坠链, en: pendant necklace, categories: [necklace]}
+      - {id: lariat, zh: Y字链, en: lariat, categories: [necklace]}
+      - {id: opera, zh: 毛衣链, en: opera, categories: [necklace]}
+      - {id: layered, zh: 多层链, en: layered, categories: [necklace]}
+      - {id: stud, zh: 耳钉, en: stud, categories: [earring]}
+      - {id: hoop, zh: 耳圈, en: hoop, categories: [earring]}
+      - {id: drop, zh: 耳坠, en: drop, categories: [earring]}
+      - {id: climber, zh: 耳爬, en: climber, categories: [earring]}
+      - {id: chandelier, zh: 流苏坠, en: chandelier, categories: [earring]}
+      - {id: chain_bracelet, zh: 链节手链, en: chain bracelet, categories: [bracelet]}
+      - {id: tennis, zh: 网球手链, en: tennis, categories: [bracelet]}
+      - {id: bead_bracelet, zh: 珠串手链, en: bead bracelet, categories: [bracelet]}
+      - {id: charm_bracelet, zh: 吊饰手链, en: charm bracelet, categories: [bracelet]}
+      - {id: solid_bangle, zh: 实心镯, en: solid bangle, categories: [bangle]}
+      - {id: open_bangle, zh: 开口镯, en: open bangle, categories: [bangle]}
+      - {id: hinged_bangle, zh: 活口镯, en: hinged, categories: [bangle]}
+      - {id: cuff_bangle, zh: 宽面镯, en: cuff, categories: [bangle]}
+      - {id: floral_brooch, zh: 花卉胸针, en: floral brooch, categories: [brooch]}
+      - {id: animal_brooch, zh: 动物胸针, en: animal brooch, categories: [brooch]}
+      - {id: bow_brooch, zh: 蝴蝶结, en: bow, categories: [brooch]}
+      - {id: drop_pendant, zh: 水滴吊坠, en: drop pendant, categories: [pendant]}
+      - {id: heart_pendant, zh: 心形吊坠, en: heart pendant, categories: [pendant]}
+      - {id: cross_pendant, zh: 十字吊坠, en: cross, categories: [pendant]}
+      - {id: lock_pendant, zh: 锁形吊坠, en: lock, categories: [pendant]}
+      - {id: chain_anklet, zh: 链节脚链, en: chain anklet, categories: [anklet]}
+      - {id: bead_anklet, zh: 珠串脚链, en: bead anklet, categories: [anklet]}
+      - {id: tiara, zh: 头冠, en: tiara, categories: [crown]}
+      - {id: circlet, zh: 环冠, en: circlet, categories: [crown]}
+      - {id: bar_cufflink, zh: 杆式袖扣, en: bar cufflink, categories: [cufflink]}
+      - {id: knot_cufflink, zh: 结形袖扣, en: knot cufflink, categories: [cufflink]}
+      - {id: stone_cufflink, zh: 宝石袖扣, en: stone cufflink, categories: [cufflink]}
 
   material:
     multiple: true
     options:
+      - {id: k18, zh: 18K金, en: 18k}
+      - {id: k14, zh: 14K金, en: 14k}
+      - {id: pure_gold, zh: 足金, en: pure gold}
       - {id: gold, zh: 黄金, en: gold}
       - {id: white_gold, zh: 白金, en: white gold}
       - {id: rose_gold, zh: 玫瑰金, en: rose gold}
       - {id: platinum, zh: 铂金, en: platinum}
       - {id: silver, zh: 银, en: silver}
       - {id: titanium, zh: 钛钢, en: titanium}
+
+  gemstone:
+    multiple: true
+    options:
       - {id: diamond, zh: 钻石, en: diamond}
-      - {id: ruby, zh: 红宝石, en: ruby}
       - {id: sapphire, zh: 蓝宝石, en: sapphire}
+      - {id: ruby, zh: 红宝石, en: ruby}
       - {id: emerald, zh: 祖母绿, en: emerald}
       - {id: pearl, zh: 珍珠, en: pearl}
       - {id: jade, zh: 翡翠, en: jade}
       - {id: agate, zh: 玛瑙, en: agate}
       - {id: crystal, zh: 水晶, en: crystal}
 
-  cut:
+  metal_color:
     multiple: false
     nullable: true
     options:
-      - {id: brilliant, zh: 圆形明亮式, en: brilliant}
-      - {id: princess, zh: 公主方, en: princess}
-      - {id: emerald, zh: 祖母绿式, en: emerald cut}
-      - {id: oval, zh: 椭圆, en: oval}
-      - {id: pear, zh: 水滴, en: pear}
-      - {id: marquise, zh: 马眼, en: marquise}
-      - {id: heart, zh: 心形, en: heart}
-
-  design:
-    multiple: true
-    options:
-      - {id: solitaire, zh: 单石戒, en: solitaire, categories: [ring]}
-      - {id: halo, zh: 光环戒, en: halo, categories: [ring]}
-      - {id: cluster, zh: 群镶戒, en: cluster, categories: [ring]}
-      - {id: three_stone, zh: 三石戒, en: three stone, categories: [ring]}
-      - {id: eternity, zh: 排戒, en: eternity, categories: [ring]}
-      - {id: plain_band, zh: 素圈戒, en: plain band, categories: [ring]}
-      - {id: open_band, zh: 开口戒, en: open ring, categories: [ring]}
-      - {id: twist, zh: 扭纹戒, en: twist, categories: [ring]}
-      - {id: split_shank, zh: 分叉戒, en: split shank, categories: [ring]}
-      - {id: wide_band, zh: 宽面戒, en: wide band, categories: [ring]}
-      - {id: couple, zh: 对戒, en: couple ring, categories: [ring]}
-      - {id: choker, zh: 锁骨链, en: choker, categories: [necklace]}
-      - {id: pendant_chain, zh: 吊坠链, en: pendant necklace, categories: [necklace]}
-      - {id: lariat, zh: Y字链, en: lariat, categories: [necklace]}
-      - {id: layered, zh: 多层链, en: layered, categories: [necklace]}
-      - {id: opera, zh: 毛衣链, en: opera, categories: [necklace]}
-      - {id: bead_strand, zh: 珠串链, en: bead strand, categories: [necklace]}
-      - {id: stud, zh: 耳钉, en: stud, categories: [earring]}
-      - {id: hoop, zh: 耳圈, en: hoop, categories: [earring]}
-      - {id: drop, zh: 耳坠, en: drop, categories: [earring]}
-      - {id: climber, zh: 耳爬, en: climber, categories: [earring]}
-      - {id: huggie, zh: 耳扣, en: huggie, categories: [earring]}
-      - {id: chandelier, zh: 流苏坠, en: chandelier, categories: [earring]}
-      - {id: chain_link, zh: 链节手链, en: chain bracelet, categories: [bracelet]}
-      - {id: bead_bracelet, zh: 珠串手链, en: bead bracelet, categories: [bracelet]}
-      - {id: tennis, zh: 网球手链, en: tennis, categories: [bracelet]}
-      - {id: charm, zh: 吊饰手链, en: charm bracelet, categories: [bracelet]}
-      - {id: solid_bangle, zh: 实心镯, en: solid bangle, categories: [bangle]}
-      - {id: open_bangle, zh: 开口镯, en: open bangle, categories: [bangle]}
-      - {id: hinged, zh: 活口镯, en: hinged bangle, categories: [bangle]}
-      - {id: cuff, zh: 宽面镯, en: cuff, categories: [bangle]}
-      - {id: floral, zh: 花卉胸针, en: floral brooch, categories: [brooch]}
-      - {id: animal, zh: 动物胸针, en: animal brooch, categories: [brooch]}
-      - {id: bow, zh: 蝴蝶结, en: bow, categories: [brooch]}
-      - {id: geometric, zh: 几何胸针, en: geometric brooch, categories: [brooch]}
-      - {id: drop_pendant, zh: 水滴吊坠, en: drop pendant, categories: [pendant]}
-      - {id: round_pendant, zh: 圆形吊坠, en: round pendant, categories: [pendant]}
-      - {id: heart_pendant, zh: 心形吊坠, en: heart pendant, categories: [pendant]}
-      - {id: cross, zh: 十字吊坠, en: cross, categories: [pendant]}
-      - {id: lock, zh: 锁形吊坠, en: lock pendant, categories: [pendant]}
-      - {id: zodiac, zh: 生肖吊坠, en: zodiac, categories: [pendant]}
-      - {id: chain_anklet, zh: 链节脚链, en: chain anklet, categories: [anklet]}
-      - {id: bead_anklet, zh: 珠串脚链, en: bead anklet, categories: [anklet]}
-      - {id: charm_anklet, zh: 吊饰脚链, en: charm anklet, categories: [anklet]}
-
-  motif:
-    multiple: true
-    options:
-      - {id: floral, zh: 花朵, en: flower}
-      - {id: leaf, zh: 叶子, en: leaf}
-      - {id: butterfly, zh: 蝴蝶, en: butterfly}
-      - {id: star, zh: 星星, en: star}
-      - {id: heart, zh: 爱心, en: heart}
-      - {id: cross, zh: 十字, en: cross}
-      - {id: lock, zh: 锁, en: lock}
-      - {id: animal, zh: 动物, en: animal}
-      - {id: zodiac, zh: 生肖, en: zodiac}
-      - {id: bead, zh: 珠子, en: bead}
-      - {id: chain, zh: 链条, en: chain}
-      - {id: geometric, zh: 几何, en: geometric}
-      - {id: letter, zh: 字母, en: letter}
-      - {id: plain, zh: 素面, en: plain}
-
-  fineness:
-    multiple: true
-    options:
-      - {id: pure_gold, zh: 足金, en: pure gold}
-      - {id: gold_999, zh: 千足金, en: 999 gold}
-      - {id: k18, zh: 18K, en: 18k}
-      - {id: k14, zh: 14K, en: 14k}
-      - {id: k9, zh: 9K, en: 9k}
-      - {id: pure_silver, zh: 足银, en: pure silver}
-      - {id: silver_925, zh: 925银, en: 925 silver}
-      - {id: pt950, zh: PT950, en: pt950}
-      - {id: pt900, zh: PT900, en: pt900}
-      - {id: unknown, zh: 成色不清, en: unknown fineness}
+      - {id: yellow, zh: 黄金色, en: yellow gold}
+      - {id: white_gold, zh: 白金色, en: white gold}
+      - {id: rose_gold, zh: 玫瑰金, en: rose gold}
+      - {id: platinum, zh: 铂金色, en: platinum}
+      - {id: silver, zh: 银色, en: silver}
+      - {id: two_tone, zh: 双色, en: two tone}
 
   style:
     multiple: true
     options:
-      - {id: classic, zh: 经典, en: classic}
       - {id: vintage, zh: 复古, en: vintage}
+      - {id: art_deco, zh: 装饰艺术, en: art deco}
+      - {id: classic, zh: 经典, en: classic}
       - {id: modern, zh: 现代, en: modern}
       - {id: minimalist, zh: 极简, en: minimalist}
       - {id: luxury, zh: 奢华, en: luxury}
       - {id: bohemian, zh: 波西米亚, en: bohemian}
       - {id: chinese, zh: 国风, en: chinese}
-      - {id: hongkong, zh: 港风, en: hongkong}
-      - {id: japanese, zh: 日系, en: japanese}
+      - {id: gothic, zh: 哥特, en: gothic}
+
+  stone_shape:
+    multiple: false
+    nullable: true
+    options:
+      - {id: brilliant, zh: 圆形明亮式, en: brilliant}
+      - {id: princess, zh: 公主方, en: princess}
+      - {id: emerald_cut, zh: 祖母绿形, en: emerald cut}
+      - {id: oval, zh: 椭圆, en: oval}
+      - {id: pear, zh: 水滴, en: pear}
+      - {id: marquise, zh: 马眼, en: marquise}
+      - {id: heart, zh: 心形, en: heart}
+      - {id: cushion, zh: 垫形, en: cushion}
+
+  setting:
+    multiple: false
+    nullable: true
+    options:
+      - {id: prong, zh: 爪镶, en: prong}
+      - {id: bezel, zh: 包镶, en: bezel}
+      - {id: pave, zh: 密镶, en: pave}
+      - {id: channel, zh: 槽镶, en: channel}
+      - {id: tension, zh: 张力镶, en: tension}
+      - {id: halo, zh: 光环镶, en: halo}
+      - {id: cluster, zh: 群镶, en: cluster}
 
   occasion:
     multiple: true
     options:
-      - {id: daily, zh: 日常, en: daily}
       - {id: wedding, zh: 婚戒, en: wedding}
       - {id: engagement, zh: 订婚, en: engagement}
+      - {id: daily, zh: 日常, en: daily}
       - {id: evening, zh: 晚宴, en: evening}
       - {id: gift, zh: 礼物, en: gift}
       - {id: anniversary, zh: 纪念日, en: anniversary}
 
-  background:
+  audience:
     multiple: false
     options:
-      - {id: solid, zh: 纯色, en: solid}
-      - {id: gradient, zh: 渐变, en: gradient}
-      - {id: scene, zh: 场景, en: scene}
+      - {id: women, zh: 女款, en: women}
+      - {id: men, zh: 男款, en: men}
+      - {id: unisex, zh: 中性, en: unisex}
+      - {id: child, zh: 童款, en: child}
 
-  angle:
+  brand_hint:
     multiple: false
+    nullable: true
     options:
-      - {id: front, zh: 正面, en: front}
-      - {id: side, zh: 侧面, en: side}
-      - {id: 45_degree, zh: 45度, en: 45 degree}
-      - {id: top, zh: 俯视, en: top}
+      - {id: visible_logo, zh: 可见商标, en: logo}
+      - {id: monogram, zh: 字母纹, en: monogram}
+      - {id: hallmark, zh: 印记, en: hallmark}
 
-  lighting:
+  era:
     multiple: false
+    nullable: true
     options:
-      - {id: soft, zh: 柔光, en: soft}
-      - {id: hard, zh: 硬光, en: hard}
-      - {id: highlight, zh: 高光, en: highlight}
-      - {id: matte, zh: 哑光, en: matte}
+      - {id: victorian, zh: 维多利亚, en: victorian}
+      - {id: edwardian, zh: 爱德华, en: edwardian}
+      - {id: art_deco, zh: 装饰艺术时期, en: art deco}
+      - {id: retro, zh: 复古年代, en: retro}
+      - {id: contemporary, zh: 当代, en: contemporary}
 
-# 可选扩展轴。出现在 JSON 的 extras 里，例如 extras.motif = ["floral"]。
-# extra_axes:
-#   motif:
-#     multiple: true
-#     options:
-#       - {id: floral, zh: 花卉, en: floral}
 extra_axes: {}

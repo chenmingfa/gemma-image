@@ -35,6 +35,8 @@ class JewelryTagger:
         retries: int = 3,
         max_new_tokens: int = 700,
         pan_and_scan: bool = False,
+        backend: str = "transformers",
+        vllm_url: str = "http://127.0.0.1:8000/v1",
         engine=None,
         taxonomy: Taxonomy | None = None,
     ):
@@ -45,9 +47,16 @@ class JewelryTagger:
         self.taxonomy = taxonomy or load_taxonomy(config_path)
         self.prompt = build_prompt(self.taxonomy)
         if engine is None:
-            from jewelry_tagger.engine import GemmaEngine
+            if backend == "vllm":
+                from jewelry_tagger.vllm_engine import VllmEngine
 
-            engine = GemmaEngine(model_id=model_id, device=device, pan_and_scan=pan_and_scan)
+                engine = VllmEngine(base_url=vllm_url, model_id=model_id)
+            elif backend == "transformers":
+                from jewelry_tagger.engine import GemmaEngine
+
+                engine = GemmaEngine(model_id=model_id, device=device, pan_and_scan=pan_and_scan)
+            else:
+                raise ValueError("backend 只能是 transformers 或 vllm")
         self.engine = engine
 
     def tag(self, source: str) -> JewelryTags:

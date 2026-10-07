@@ -1,221 +1,185 @@
-"""识别结果的结构。字段和示例 JSON 对齐，取值由配置文件约束。"""
+"""识别结果。材质和宝石用中文，其余枚举用配置里的 id。"""
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from jewelry_tagger.taxonomy import Taxonomy
-
-_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
-_COLOR_NAMES = {
-    "gold": "#FFD700",
-    "white": "#FFFFFF",
-    "black": "#000000",
-    "red": "#C41E3A",
-    "blue": "#0F52BA",
-    "green": "#046307",
-    "pink": "#FFC0CB",
-    "silver": "#C0C0C0",
-    "金色": "#FFD700",
-    "白色": "#FFFFFF",
-    "黑色": "#000000",
-    "红色": "#C41E3A",
-    "蓝色": "#0F52BA",
-    "绿色": "#046307",
-    "粉色": "#FFC0CB",
-    "银色": "#C0C0C0",
-}
-
-
-class CategoryTag(BaseModel):
-    main: str
-    confidence: float = Field(ge=0, le=1)
-
-
-class MaterialTag(BaseModel):
-    name: str
-    confidence: float = Field(ge=0, le=1)
-
-
-class CutTag(BaseModel):
-    name: str
-    confidence: float = Field(ge=0, le=1)
-
-
-class ColorTag(BaseModel):
-    primary: str
-    secondary: list[str] = Field(default_factory=list)
-
-    @field_validator("primary")
-    @classmethod
-    def _primary_hex(cls, value: str) -> str:
-        return _color_to_hex(value)
-
-    @field_validator("secondary")
-    @classmethod
-    def _secondary_hex(cls, values: list[str]) -> list[str]:
-        return [_color_to_hex(value) for value in values]
-
-
-class VisualTag(BaseModel):
-    background: str
-    angle: str
-    lighting: str
+from jewelry_tagger.taxonomy import Axis, Taxonomy
 
 
 class JewelryTags(BaseModel):
-    category: CategoryTag
-    material: list[MaterialTag] = Field(min_length=1)
-    cut: CutTag | None
-    design: list[str] = Field(min_length=1)
-    motif: list[str] = Field(min_length=1)
-    fineness: list[str] = Field(min_length=1)
+    category: str
+    sub_category: str
+    material: list[str] = Field(min_length=1)
+    gemstone: list[str] = Field(default_factory=list)
+    metal_color: str | None = None
     style: list[str] = Field(min_length=1)
+    stone_shape: str | None = None
+    setting: str | None = None
     occasion: list[str] = Field(min_length=1)
-    color: ColorTag
-    visual: VisualTag
-    caption: str = Field(min_length=1, max_length=80)
+    audience: str
+    brand_hint: str | None = None
+    era: str | None = None
+    confidence: float = Field(ge=0, le=1)
+    tags: list[str] = Field(min_length=1)
     extras: dict[str, list[str]] = Field(default_factory=dict)
 
-
-def _color_to_hex(value: str) -> str:
-    text = value.strip()
-    if _HEX.match(text):
-        return text.upper()
-    named = _COLOR_NAMES.get(text.casefold()) or _COLOR_NAMES.get(text)
-    if named:
-        return named
-    raise ValueError(f"颜色要写成 #RRGGBB，收到的是 {value}")
-
-
-def _confidence(value: object, default: float | None = None) -> float | None:
-    if value is None or value == "":
-        return default
-    number = float(value)
-    if number > 1:
-        number = number / 100
-    if number < 0 or number > 1:
-        raise ValueError(f"置信度必须在 0 到 1 之间，收到的是 {value}")
-    return number
-
-
-def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
-    """把模型常见的变形收成示例里的 JSON 形状，再用词表核对 id。"""
-    category = data.get("category")
-    if isinstance(category, str):
-        category = {"main": category}
-    if not isinstance(category, dict):
-        raise ValueError("category 必须是对象")
-    main = taxonomy.axis("category").resolve(category.get("main"))
-    if main is None:
-        raise ValueError("category.main 不能为空")
-
-    materials = data.get("material")
-    if isinstance(materials, dict):
-        materials = [materials]
-    if isinstance(materials, str):
-        materials = [materials]
-    if not isinstance(materials, list) or not materials:
-        raise ValueError("material 至少要有一项")
-    material_items = []
-    for item in materials:
-        if isinstance(item, str):
-            item = {"name": item}
-        if not isinstance(item, dict):
-            raise ValueError("material 里的每一项必须是对象或字符串")
-        name = taxonomy.axis("material").resolve(item.get("name"))
-        if name is None:
-            continue
-        confidence = _confidence(item.get("confidence"))
-        if confidence is None:
-            raise ValueError(f"material.{name} 缺少 confidence")
-        material_items.append({"name": name, "confidence": confidence})
-    if not material_items:
-        raise ValueError("material 没有可用的材质")
-
-    cut_raw = data.get("cut")
-    cut: dict | None
-    if cut_raw in (None, "", "null"):
-        cut = None
-    else:
-        if isinstance(cut_raw, str):
-            cut_raw = {"name": cut_raw}
-        if not isinstance(cut_raw, dict):
-            raise ValueError("cut 必须是对象或 null")
-        cut_name = taxonomy.axis("cut").resolve(cut_raw.get("name"))
-        if cut_name is None:
-            cut = None
-        else:
-            cut_confidence = _confidence(cut_raw.get("confidence"))
-            if cut_confidence is None:
-                raise ValueError("cut.confidence 缺失")
-            cut = {"name": cut_name, "confidence": cut_confidence}
-
-    design = taxonomy.resolve_many("design", data.get("design"))
-    if not design:
-        raise ValueError("design 至少要有一个款式形状")
-    mismatched = [item for item in design if not taxonomy.axis("design").allows(item, main)]
-    if mismatched:
-        allowed = "、".join(
-            option.zh for option in taxonomy.axis("design").options if not option.categories or main in option.categories
-        )
-        raise ValueError("款式形状 " + "、".join(mismatched) + f" 和品类 {main} 不符。这一类可以用：{allowed}")
-
-    motif = taxonomy.resolve_many("motif", data.get("motif"))
-    if not motif:
-        raise ValueError("motif 至少要有一个物体；没有纹样就写 plain")
-    fineness = taxonomy.resolve_many("fineness", data.get("fineness"))
-    if not fineness:
-        raise ValueError("fineness 至少要有一个成色；看不清就写 unknown")
-
-    color = data.get("color") or {}
-    if isinstance(color, str):
-        color = {"primary": color}
-    if not isinstance(color, dict) or not color.get("primary"):
-        raise ValueError("color.primary 缺失")
-    secondary = color.get("secondary") or []
-    if isinstance(secondary, str):
-        secondary = [secondary]
-
-    visual = data.get("visual") or {}
-    if not isinstance(visual, dict):
-        raise ValueError("visual 必须是对象")
-
-    extras: dict[str, list[str]] = {}
-    for name in taxonomy.extra_axes:
-        raw_extra = data.get("extras", {}).get(name) if isinstance(data.get("extras"), dict) else None
-        if raw_extra is None:
-            raw_extra = data.get(name)
-        if raw_extra is None:
-            continue
-        extras[name] = taxonomy.resolve_many(name, raw_extra)
-
-    category_confidence = _confidence(category.get("confidence"))
-    if category_confidence is None:
-        raise ValueError("category.confidence 缺失")
-
-    return {
-        "category": {"main": main, "confidence": category_confidence},
-        "material": material_items,
-        "cut": cut,
-        "design": design,
-        "motif": motif,
-        "fineness": fineness,
-        "style": taxonomy.resolve_many("style", data.get("style")),
-        "occasion": taxonomy.resolve_many("occasion", data.get("occasion")),
-        "color": {"primary": color.get("primary"), "secondary": secondary},
-        "visual": {
-            "background": taxonomy.axis("background").resolve(visual.get("background")),
-            "angle": taxonomy.axis("angle").resolve(visual.get("angle")),
-            "lighting": taxonomy.axis("lighting").resolve(visual.get("lighting")),
-        },
-        "caption": str(data.get("caption") or "").strip(),
-        "extras": extras,
-    }
+    def as_json(self) -> dict:
+        data = self.model_dump()
+        if not data.get("extras"):
+            data.pop("extras", None)
+        return data
 
 
 def parse_tags(data: dict, taxonomy: Taxonomy) -> JewelryTags:
     return JewelryTags.model_validate(normalize_payload(data, taxonomy))
+
+
+def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
+    category = taxonomy.axis("category").resolve(_token(data.get("category")))
+    if category is None:
+        raise ValueError("category 不能为空")
+    sub_category = taxonomy.axis("sub_category").resolve(_token(data.get("sub_category")))
+    if sub_category is None:
+        raise ValueError("sub_category 不能为空，要写这张款式的形状")
+    if not taxonomy.axis("sub_category").allows(sub_category, category):
+        allowed = "、".join(
+            option.id
+            for option in taxonomy.axis("sub_category").options
+            if not option.categories or category in option.categories
+        )
+        raise ValueError(f"sub_category {sub_category} 不属于 {category}。可以用：{allowed}")
+
+    material_ids = taxonomy.resolve_many("material", _as_list(data.get("material")))
+    if not material_ids:
+        raise ValueError("material 至少要有一项")
+    gemstone_ids = taxonomy.resolve_many("gemstone", _as_list(data.get("gemstone")))
+    style = taxonomy.resolve_many("style", _as_list(data.get("style")))
+    if not style:
+        raise ValueError("style 至少要有一项")
+    occasion = taxonomy.resolve_many("occasion", _as_list(data.get("occasion")))
+    if not occasion:
+        raise ValueError("occasion 至少要有一项")
+    audience = taxonomy.axis("audience").resolve(_token(data.get("audience")))
+    if audience is None:
+        raise ValueError("audience 不能为空")
+
+    payload = {
+        "category": category,
+        "sub_category": sub_category,
+        "material": _labels(taxonomy.axis("material"), material_ids),
+        "gemstone": _labels(taxonomy.axis("gemstone"), gemstone_ids),
+        "metal_color": taxonomy.axis("metal_color").resolve(_token(data.get("metal_color"))),
+        "style": style,
+        "stone_shape": taxonomy.axis("stone_shape").resolve(_token(data.get("stone_shape"))),
+        "setting": taxonomy.axis("setting").resolve(_token(data.get("setting"))),
+        "occasion": occasion,
+        "audience": audience,
+        "brand_hint": taxonomy.axis("brand_hint").resolve(_token(data.get("brand_hint"))),
+        "era": taxonomy.axis("era").resolve(_token(data.get("era"))),
+        "confidence": _confidence(data.get("confidence"), data.get("category")),
+        "extras": _extras(data, taxonomy),
+        "tags": _tags(data.get("tags"), taxonomy, {
+            "sub_category": [sub_category],
+            "style": style,
+            "occasion": occasion,
+            "setting": [taxonomy.axis("setting").resolve(_token(data.get("setting")))],
+        }),
+    }
+    return payload
+
+
+def _token(value: object) -> object:
+    if isinstance(value, dict):
+        return value.get("main") or value.get("name") or value.get("id")
+    return value
+
+
+def _as_list(value: object) -> list:
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, list):
+        return value
+    raise ValueError("标签项必须是字符串或数组")
+
+
+def _extras(data: dict, taxonomy: Taxonomy) -> dict[str, list[str]]:
+    found: dict[str, list[str]] = {}
+    raw_extras = data.get("extras") if isinstance(data.get("extras"), dict) else {}
+    for name in taxonomy.extra_axes:
+        raw = raw_extras.get(name)
+        if raw is None:
+            raw = data.get(name)
+        if raw is None:
+            continue
+        found[name] = taxonomy.resolve_many(name, raw)
+    return found
+
+
+def _labels(axis: Axis, ids: list[str]) -> list[str]:
+    names = {option.id: option.zh for option in axis.options}
+    return [names[item] for item in ids]
+
+
+def _confidence(value: object, category: object) -> float:
+    if value is None and isinstance(category, dict):
+        value = category.get("confidence")
+    if value is None or value == "":
+        raise ValueError("confidence 缺失")
+    number = float(value)
+    if number > 1:
+        number = number / 100
+    if number < 0 or number > 1:
+        raise ValueError(f"confidence 必须在 0 到 1 之间，收到的是 {value}")
+    return number
+
+
+def _tags(raw: object, taxonomy: Taxonomy, chosen: dict[str, list]) -> list[str]:
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def add(text: str) -> None:
+        label = text.strip()
+        if not label or len(label) > 8:
+            return
+        key = label.casefold()
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(label)
+
+    for item in _as_list(raw):
+        token = str(_token(item) or "").strip()
+        if not token:
+            continue
+        zh = _lookup_zh(taxonomy, token)
+        add(zh or token)
+    if found:
+        return found[:12]
+    for axis_name, ids in chosen.items():
+        axis = taxonomy.axis(axis_name)
+        names = {option.id: option.zh for option in axis.options}
+        for item in ids:
+            if item:
+                add(names.get(item, item))
+    if not found:
+        raise ValueError("tags 不能为空")
+    return found[:12]
+
+
+def _lookup_zh(taxonomy: Taxonomy, token: str) -> str | None:
+    key = token.casefold()
+    for axis in taxonomy.axes.values():
+        option_id = axis.lookup.get(key)
+        if option_id is None:
+            continue
+        for option in axis.options:
+            if option.id == option_id:
+                return option.zh
+    return None
