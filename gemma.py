@@ -17,9 +17,21 @@ HOST = os.environ.get("GEMMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = "gemma3:4b"
 VISION_CANDIDATES = ("gemma3:4b", "gemma3:12b", "gemma3:27b")
 
-# 标签主线：品类、金属、主石在前，形状、工艺、风格在后。
+# 标签主线：品类和款式形状在前，然后是金属、主石、切工形状、工艺、风格。
+DESIGN_BY_CATEGORY: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("戒指", ("单石戒", "光环戒", "群镶戒", "三石戒", "排戒", "素圈戒", "开口戒", "扭纹戒", "分叉戒", "宽面戒", "对戒")),
+    ("项链", ("锁骨链", "吊坠链", "Y字链", "多层链", "毛衣链", "珠串链")),
+    ("耳环", ("耳钉款", "耳圈", "耳坠", "耳爬", "耳扣", "流苏坠")),
+    ("手链", ("链节手链", "珠串手链", "网球手链", "吊饰手链")),
+    ("手镯", ("实心镯", "开口镯", "活口镯", "宽面镯")),
+    ("胸针", ("花卉胸针", "动物胸针", "蝴蝶结", "几何胸针")),
+    ("吊坠", ("水滴吊坠", "圆形吊坠", "心形吊坠", "十字吊坠", "锁形吊坠", "生肖吊坠")),
+    ("脚链", ("链节脚链", "珠串脚链", "吊饰脚链")),
+)
+_DESIGN_TAGS = tuple(word for _, words in DESIGN_BY_CATEGORY for word in words)
 JEWELRY_AXES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("品类", ("戒指", "项链", "耳环", "耳钉", "手链", "手镯", "吊坠", "胸针", "脚链")),
+    ("款式", _DESIGN_TAGS),
     ("金属", ("黄金", "足金", "K金", "玫瑰金", "白金", "铂金", "银")),
     ("主石", ("钻石", "翡翠", "珍珠", "红宝石", "蓝宝石", "祖母绿", "玉石", "水晶", "玛瑙")),
     ("形状", ("圆形", "水滴", "心形", "方形", "椭圆", "梨形")),
@@ -33,9 +45,11 @@ JEWELRY_ALIASES = {
     "求婚戒": ("戒指", "婚庆"),
     "颈链": ("项链",),
     "吊坠项链": ("项链", "吊坠"),
-    "耳坠": ("耳环",),
+    "耳坠": ("耳环", "耳坠"),
     "耳饰": ("耳环",),
-    "耳圈": ("耳环",),
+    "耳圈": ("耳环", "耳圈"),
+    "光环": ("光环戒",),
+    "单石": ("单石戒",),
     "手环": ("手链",),
     "手串": ("手链",),
     "脚镯": ("脚链",),
@@ -57,13 +71,19 @@ def _jewelry_prompt() -> str:
     lines = [
         "请看这张图片，按珠宝检索来写标签。只输出下面两行，不要 Markdown，不要解释。",
         "说明：一句简体中文，不超过40个字，先写珠宝本身",
-        "标签：戒指、玫瑰金、钻石、圆形、爪镶、婚庆",
+        "标签：戒指、光环戒、玫瑰金、钻石、圆形、爪镶、婚庆",
         "",
-        "标签用顿号「、」分开，6 到 12 个，每个 2 到 6 个字。",
-        "顺序固定：品类、金属、主石、形状、工艺、风格。背景和佩戴放在最后。",
-        "看得到的珠宝必须先写品类。看不清的金属、主石、克拉数不要写。",
+        "标签用顿号「、」分开，8 到 16 个，每个 2 到 6 个字。",
+        "顺序固定：品类、款式、金属、主石、形状、工艺、风格。背景和佩戴放在最后。",
+        "看得到的珠宝必须先写品类，再写至少一个款式形状。款式只能用该品类下面的词。",
+        "看不清的金属、主石、克拉数不要写。",
     ]
     for name, words in JEWELRY_AXES:
+        if name == "款式":
+            lines.append("款式必须写，按品类选用：")
+            for category, shapes in DESIGN_BY_CATEGORY:
+                lines.append(f"{category}：{'、'.join(shapes)}。")
+            continue
         verb = "只用" if name in {"品类", "金属", "主石"} else "尽量用"
         lines.append(f"{name}{verb}：{'、'.join(words)}。")
     lines.append("没有珠宝时，标签只写：无珠宝。")
@@ -207,7 +227,7 @@ def parse_recognition(text: str) -> tuple[str, list[str]]:
 
 
 def arrange_jewelry_tags(tags: list[str]) -> list[str]:
-    """同义词收成主线叫法，并按品类、金属、主石、形状、工艺、风格排列。"""
+    """同义词收成主线叫法，并按品类、款式、金属、主石、形状、工艺、风格排列。"""
     expanded: list[str] = []
     seen: set[str] = set()
     for tag in tags:
@@ -228,7 +248,7 @@ def arrange_jewelry_tags(tags: list[str]) -> list[str]:
         else:
             buckets[index].append(tag)
     ordered = [tag for bucket in buckets for tag in bucket]
-    return (ordered + rest)[:12]
+    return (ordered + rest)[:16]
 
 
 def _strip_fence(text: str) -> str:
@@ -276,7 +296,7 @@ def _collect_tags(value: object) -> list[str]:
             continue
         seen.add(key)
         tags.append(tag)
-        if len(tags) >= 12:
+        if len(tags) >= 16:
             break
     return tags
 

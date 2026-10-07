@@ -46,6 +46,54 @@ axes:
       - {id: marquise, zh: 马眼, en: marquise}
       - {id: heart, zh: 心形, en: heart}
 
+  design:
+    multiple: true
+    options:
+      - {id: solitaire, zh: 单石戒, en: solitaire, categories: [ring]}
+      - {id: halo, zh: 光环戒, en: halo, categories: [ring]}
+      - {id: cluster, zh: 群镶戒, en: cluster, categories: [ring]}
+      - {id: three_stone, zh: 三石戒, en: three stone, categories: [ring]}
+      - {id: eternity, zh: 排戒, en: eternity, categories: [ring]}
+      - {id: plain_band, zh: 素圈戒, en: plain band, categories: [ring]}
+      - {id: open_band, zh: 开口戒, en: open ring, categories: [ring]}
+      - {id: twist, zh: 扭纹戒, en: twist, categories: [ring]}
+      - {id: split_shank, zh: 分叉戒, en: split shank, categories: [ring]}
+      - {id: wide_band, zh: 宽面戒, en: wide band, categories: [ring]}
+      - {id: couple, zh: 对戒, en: couple ring, categories: [ring]}
+      - {id: choker, zh: 锁骨链, en: choker, categories: [necklace]}
+      - {id: pendant_chain, zh: 吊坠链, en: pendant necklace, categories: [necklace]}
+      - {id: lariat, zh: Y字链, en: lariat, categories: [necklace]}
+      - {id: layered, zh: 多层链, en: layered, categories: [necklace]}
+      - {id: opera, zh: 毛衣链, en: opera, categories: [necklace]}
+      - {id: bead_strand, zh: 珠串链, en: bead strand, categories: [necklace]}
+      - {id: stud, zh: 耳钉, en: stud, categories: [earring]}
+      - {id: hoop, zh: 耳圈, en: hoop, categories: [earring]}
+      - {id: drop, zh: 耳坠, en: drop, categories: [earring]}
+      - {id: climber, zh: 耳爬, en: climber, categories: [earring]}
+      - {id: huggie, zh: 耳扣, en: huggie, categories: [earring]}
+      - {id: chandelier, zh: 流苏坠, en: chandelier, categories: [earring]}
+      - {id: chain_link, zh: 链节手链, en: chain bracelet, categories: [bracelet]}
+      - {id: bead_bracelet, zh: 珠串手链, en: bead bracelet, categories: [bracelet]}
+      - {id: tennis, zh: 网球手链, en: tennis, categories: [bracelet]}
+      - {id: charm, zh: 吊饰手链, en: charm bracelet, categories: [bracelet]}
+      - {id: solid_bangle, zh: 实心镯, en: solid bangle, categories: [bangle]}
+      - {id: open_bangle, zh: 开口镯, en: open bangle, categories: [bangle]}
+      - {id: hinged, zh: 活口镯, en: hinged bangle, categories: [bangle]}
+      - {id: cuff, zh: 宽面镯, en: cuff, categories: [bangle]}
+      - {id: floral, zh: 花卉胸针, en: floral brooch, categories: [brooch]}
+      - {id: animal, zh: 动物胸针, en: animal brooch, categories: [brooch]}
+      - {id: bow, zh: 蝴蝶结, en: bow, categories: [brooch]}
+      - {id: geometric, zh: 几何胸针, en: geometric brooch, categories: [brooch]}
+      - {id: drop_pendant, zh: 水滴吊坠, en: drop pendant, categories: [pendant]}
+      - {id: round_pendant, zh: 圆形吊坠, en: round pendant, categories: [pendant]}
+      - {id: heart_pendant, zh: 心形吊坠, en: heart pendant, categories: [pendant]}
+      - {id: cross, zh: 十字吊坠, en: cross, categories: [pendant]}
+      - {id: lock, zh: 锁形吊坠, en: lock pendant, categories: [pendant]}
+      - {id: zodiac, zh: 生肖吊坠, en: zodiac, categories: [pendant]}
+      - {id: chain_anklet, zh: 链节脚链, en: chain anklet, categories: [anklet]}
+      - {id: bead_anklet, zh: 珠串脚链, en: bead anklet, categories: [anklet]}
+      - {id: charm_anklet, zh: 吊饰脚链, en: charm anklet, categories: [anklet]}
+
   style:
     multiple: true
     options:

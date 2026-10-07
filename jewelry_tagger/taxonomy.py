@@ -15,6 +15,7 @@ class TagOption:
     id: str
     zh: str
     en: str
+    categories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,13 @@ class Axis:
             allowed = "、".join(item.id for item in self.options)
             raise ValueError(f"{self.name} 不能是 {text}。只能用：{allowed}")
         return found
+
+    def allows(self, option_id: str, category: str) -> bool:
+        for option in self.options:
+            if option.id != option_id:
+                continue
+            return not option.categories or category in option.categories
+        return False
 
 
 @dataclass
@@ -70,7 +78,12 @@ class Taxonomy:
 
 def _build_axis(name: str, spec: dict) -> Axis:
     options = tuple(
-        TagOption(id=str(item["id"]), zh=str(item.get("zh") or item["id"]), en=str(item.get("en") or item["id"]))
+        TagOption(
+            id=str(item["id"]),
+            zh=str(item.get("zh") or item["id"]),
+            en=str(item.get("en") or item["id"]),
+            categories=_categories(item.get("categories")),
+        )
         for item in spec.get("options") or []
     )
     if not options:
@@ -88,11 +101,19 @@ def _build_axis(name: str, spec: dict) -> Axis:
     )
 
 
+def _categories(value: object) -> tuple[str, ...]:
+    if value is None or value == "":
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    return tuple(str(item) for item in value)
+
+
 def load_taxonomy(path: str | Path | None = None) -> Taxonomy:
     config_path = Path(path) if path else DEFAULT_CONFIG
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     axes = {name: _build_axis(name, spec) for name, spec in (data.get("axes") or {}).items()}
-    required = {"category", "material", "cut", "style", "occasion", "background", "angle", "lighting"}
+    required = {"category", "material", "cut", "design", "style", "occasion", "background", "angle", "lighting"}
     missing = required - set(axes)
     if missing:
         raise ValueError("配置缺少标签轴：" + "、".join(sorted(missing)))

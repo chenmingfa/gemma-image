@@ -118,6 +118,8 @@ class LibraryTests(unittest.TestCase):
         caption, tags = parse_recognition("说明：玫瑰金钻戒\n标签：钻戒、玫瑰金、圆形、爪镶、暖光")
         self.assertEqual(caption, "玫瑰金钻戒")
         self.assertEqual(tags, ["戒指", "玫瑰金", "钻石", "圆形", "爪镶", "暖光"])
+        _, shaped = parse_recognition("说明：玫瑰金光环钻戒\n标签：钻戒、光环戒、玫瑰金、圆形")
+        self.assertEqual(shaped[:4], ["戒指", "光环戒", "玫瑰金", "钻石"])
         with self.assertRaises(Exception):
             parse_recognition("这张图很好看，但没有按格式写。")
         self.assertEqual(choose_model(["llama3", "gemma3:12b"]), "gemma3:12b")

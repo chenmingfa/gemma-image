@@ -132,7 +132,7 @@ function paintGrid(batch, append) {
     grid.innerHTML = "";
     empty.hidden = false;
     empty.textContent = libraryCount === 0 && !query
-      ? "选一个文件夹，Gemma 3 会按品类、金属、主石写珠宝标签。"
+      ? "选一个文件夹，Gemma 3 会按品类、款式形状、金属、主石写珠宝标签。"
       : "这几个标签还没有对应的图片。";
     $("count").textContent = "";
     more.hidden = true;

@@ -70,6 +70,7 @@ class JewelryTags(BaseModel):
     category: CategoryTag
     material: list[MaterialTag] = Field(min_length=1)
     cut: CutTag | None
+    design: list[str] = Field(min_length=1)
     style: list[str] = Field(min_length=1)
     occasion: list[str] = Field(min_length=1)
     color: ColorTag
@@ -151,6 +152,16 @@ def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
                 raise ValueError("cut.confidence 缺失")
             cut = {"name": cut_name, "confidence": cut_confidence}
 
+    design = taxonomy.resolve_many("design", data.get("design"))
+    if not design:
+        raise ValueError("design 至少要有一个款式形状")
+    mismatched = [item for item in design if not taxonomy.axis("design").allows(item, main)]
+    if mismatched:
+        allowed = "、".join(
+            option.zh for option in taxonomy.axis("design").options if not option.categories or main in option.categories
+        )
+        raise ValueError(f"款式形状 { '、'.join(mismatched) } 和品类 {main} 不符。这一类可以用：{allowed}")
+
     color = data.get("color") or {}
     if isinstance(color, str):
         color = {"primary": color}
@@ -181,6 +192,7 @@ def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
         "category": {"main": main, "confidence": category_confidence},
         "material": material_items,
         "cut": cut,
+        "design": design,
         "style": taxonomy.resolve_many("style", data.get("style")),
         "occasion": taxonomy.resolve_many("occasion", data.get("occasion")),
         "color": {"primary": color.get("primary"), "secondary": secondary},

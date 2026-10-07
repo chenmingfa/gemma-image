@@ -15,6 +15,7 @@ SAMPLE = {
     "category": {"main": "ring", "confidence": 0.95},
     "material": [{"name": "gold", "confidence": 0.9}, {"name": "diamond", "confidence": 0.88}],
     "cut": {"name": "brilliant", "confidence": 0.85},
+    "design": ["solitaire"],
     "style": ["luxury", "classic"],
     "occasion": ["wedding", "engagement"],
     "color": {"primary": "#FFD700", "secondary": ["#FFFFFF"]},
@@ -63,6 +64,13 @@ class TaggerTests(unittest.TestCase):
         self.assertEqual(tags.material[0].name, "gold")
         self.assertEqual(tags.material[0].confidence, 0.9)
         self.assertEqual(tags.color.secondary, ["#FFFFFF"])
+        self.assertEqual(tags.design, ["solitaire"])
+        shaped = json.loads(json.dumps(SAMPLE))
+        shaped["design"] = ["光环戒"]
+        self.assertEqual(parse_tags(shaped, self.taxonomy).design, ["halo"])
+        shaped["design"] = ["耳钉"]
+        with self.assertRaises(ValueError):
+            parse_tags(shaped, self.taxonomy)
 
     def test_repair_trailing_comma_and_fence(self):
         raw = "```json\n" + json.dumps(SAMPLE, ensure_ascii=False).replace("}", ",}") + "\n```"
@@ -86,6 +94,10 @@ axes:
   background: {multiple: false, options: [{id: solid, zh: 纯色, en: solid}]}
   angle: {multiple: false, options: [{id: front, zh: 正面, en: front}]}
   lighting: {multiple: false, options: [{id: soft, zh: 柔光, en: soft}]}
+  design:
+    multiple: true
+    options:
+      - {id: solitaire, zh: 单石戒, en: solitaire, categories: [ring]}
 extra_axes:
   motif: {multiple: true, options: [{id: floral, zh: 花卉, en: floral}]}
 """
@@ -99,6 +111,7 @@ extra_axes:
         payload["style"] = ["classic"]
         payload["occasion"] = ["daily"]
         payload["visual"] = {"background": "solid", "angle": "front", "lighting": "soft"}
+        payload["design"] = ["solitaire"]
         payload["extras"] = {"motif": ["花卉"]}
         tags = parse_tags(payload, taxonomy)
         self.assertEqual(tags.extras["motif"], ["floral"])
