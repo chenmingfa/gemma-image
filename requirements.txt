@@ -1,1 +1,6 @@
-pillow
+pillow>=10
+pydantic>=2.6
+pyyaml>=6
+transformers>=4.50
+accelerate>=1.2
+torch>=2.6

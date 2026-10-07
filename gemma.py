@@ -17,15 +17,62 @@ HOST = os.environ.get("GEMMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = "gemma3:4b"
 VISION_CANDIDATES = ("gemma3:4b", "gemma3:12b", "gemma3:27b")
 
-PROMPT = """请看这张图片，写出检索用的说明和标签。只输出下面两行，不要 Markdown，不要解释。
-说明：一句简体中文，不超过40个字，只写画面里看得到的内容
-标签：白猫、窗台、木地板、暖光
+# 标签主线：品类、金属、主石在前，形状、工艺、风格在后。
+JEWELRY_AXES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("品类", ("戒指", "项链", "耳环", "耳钉", "手链", "手镯", "吊坠", "胸针", "脚链")),
+    ("金属", ("黄金", "足金", "K金", "玫瑰金", "白金", "铂金", "银")),
+    ("主石", ("钻石", "翡翠", "珍珠", "红宝石", "蓝宝石", "祖母绿", "玉石", "水晶", "玛瑙")),
+    ("形状", ("圆形", "水滴", "心形", "方形", "椭圆", "梨形")),
+    ("工艺", ("爪镶", "六爪", "包镶", "密镶", "雕刻", "镂空", "珐琅", "素圈")),
+    ("风格", ("经典", "复古", "极简", "华丽", "婚庆", "日常")),
+)
+JEWELRY_ALIASES = {
+    "指环": ("戒指",),
+    "钻戒": ("戒指", "钻石"),
+    "对戒": ("戒指",),
+    "求婚戒": ("戒指", "婚庆"),
+    "颈链": ("项链",),
+    "吊坠项链": ("项链", "吊坠"),
+    "耳坠": ("耳环",),
+    "耳饰": ("耳环",),
+    "耳圈": ("耳环",),
+    "手环": ("手链",),
+    "手串": ("手链",),
+    "脚镯": ("脚链",),
+    "圆钻": ("钻石", "圆形"),
+    "水滴形": ("水滴",),
+    "18k": ("K金",),
+    "14k": ("K金",),
+    "pt950": ("铂金",),
+}
+_ALIAS_BY_KEY = {key.casefold(): values for key, values in JEWELRY_ALIASES.items()}
+_AXIS_OF = {
+    word.casefold(): index
+    for index, (_, words) in enumerate(JEWELRY_AXES)
+    for word in words
+}
 
-标签行写 8 到 12 个简体中文短标签，用顿号「、」分开。每个标签 2 到 6 个字，单独一个词。
-覆盖确实可见的主体、场景、颜色、材质、风格、动作。
-上面的「白猫、窗台」只是格式例子，必须改成这张图里看得到的内容，不要照抄。
-不要把整句说明再写进标签，不要重复，不要编造看不清的细节。
-"""
+
+def _jewelry_prompt() -> str:
+    lines = [
+        "请看这张图片，按珠宝检索来写标签。只输出下面两行，不要 Markdown，不要解释。",
+        "说明：一句简体中文，不超过40个字，先写珠宝本身",
+        "标签：戒指、玫瑰金、钻石、圆形、爪镶、婚庆",
+        "",
+        "标签用顿号「、」分开，6 到 12 个，每个 2 到 6 个字。",
+        "顺序固定：品类、金属、主石、形状、工艺、风格。背景和佩戴放在最后。",
+        "看得到的珠宝必须先写品类。看不清的金属、主石、克拉数不要写。",
+    ]
+    for name, words in JEWELRY_AXES:
+        verb = "只用" if name in {"品类", "金属", "主石"} else "尽量用"
+        lines.append(f"{name}{verb}：{'、'.join(words)}。")
+    lines.append("没有珠宝时，标签只写：无珠宝。")
+    lines.append("上面的戒指、玫瑰金只是格式例子，必须改成这张图的内容，不要照抄。")
+    lines.append("不要写句子，不要重复。")
+    return "\n".join(lines)
+
+
+PROMPT = _jewelry_prompt()
 
 
 class GemmaError(Exception):
@@ -112,7 +159,7 @@ def require_model() -> str:
 def build_prompt(vocabulary: list[str], hint: str) -> str:
     parts = [PROMPT]
     if vocabulary:
-        parts.append("尽量复用这些已有标签，避免同义词：" + "、".join(vocabulary[:60]))
+        parts.append("库里已有这些叫法，能对上就复用，不要另造同义词：" + "、".join(vocabulary[:60]))
     if hint:
         parts.append(f"文件放在名为「{hint}」的文件夹里。这个名字只作参考，和画面不符就不要写进标签。")
     return "\n".join(parts)
@@ -152,11 +199,36 @@ def parse_recognition(text: str) -> tuple[str, list[str]]:
         caption = _clean_caption(data.get("caption") or data.get("说明") or data.get("画面") or "")
         tags = _collect_tags(data.get("tags") if "tags" in data else data.get("标签"))
         if tags:
-            return caption, tags
+            return caption, arrange_jewelry_tags(tags)
     caption, tags = _parse_labeled_lines(raw)
     if tags:
-        return caption, tags
+        return caption, arrange_jewelry_tags(tags)
     raise RecognizeError("没有得到标签")
+
+
+def arrange_jewelry_tags(tags: list[str]) -> list[str]:
+    """同义词收成主线叫法，并按品类、金属、主石、形状、工艺、风格排列。"""
+    expanded: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        for item in _ALIAS_BY_KEY.get(tag.casefold(), (tag,)):
+            key = item.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            expanded.append(item)
+    if "无珠宝" in seen and len(expanded) > 1:
+        expanded = [item for item in expanded if item != "无珠宝"]
+    buckets: list[list[str]] = [[] for _ in JEWELRY_AXES]
+    rest: list[str] = []
+    for tag in expanded:
+        index = _AXIS_OF.get(tag.casefold())
+        if index is None:
+            rest.append(tag)
+        else:
+            buckets[index].append(tag)
+    ordered = [tag for bucket in buckets for tag in bucket]
+    return (ordered + rest)[:12]
 
 
 def _strip_fence(text: str) -> str:

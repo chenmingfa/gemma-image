@@ -1,10 +1,10 @@
 """本地图片库。
 
-Gemma 3 在这台电脑上看图、写标签。之后按标签取回原图路径。
+Gemma 3 在这台电脑上看珠宝图，按品类、金属、主石写标签。之后按标签取回原图路径。
 
   python app.py
   python app.py index D:\\照片
-  python app.py search 海边 猫
+  python app.py search 戒指 钻石
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
 
-    parser = argparse.ArgumentParser(description="用 Gemma 3 把本地图片识别成可按标签检索的图片库")
+    parser = argparse.ArgumentParser(description="用 Gemma 3 把珠宝图片识别成可按品类、金属、主石检索的图片库")
     sub = parser.add_subparsers(dest="cmd")
 
     serve_parser = sub.add_parser("serve", help="打开本地网页")

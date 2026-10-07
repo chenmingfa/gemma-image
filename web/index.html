@@ -11,7 +11,7 @@
     <div>
       <p class="eyebrow">本机 · Gemma 3</p>
       <h1>本地图片库</h1>
-      <p class="lede">Gemma 3 在这台电脑上看图、写标签。你改过的标签会留下来，后面的图片会优先沿用。</p>
+      <p class="lede">Gemma 3 按珠宝写标签：品类、金属、主石在前。你改过的叫法会留下来，后面的图片会优先沿用。</p>
     </div>
     <div class="model-box">
       <p id="modelStatus" class="status">正在检查模型</p>
@@ -22,7 +22,7 @@
   <section class="panel">
     <div class="folder-row">
       <label class="grow" for="folder">图片文件夹</label>
-      <input id="folder" type="text" spellcheck="false" placeholder="例如 D:\照片\旅行" />
+      <input id="folder" type="text" spellcheck="false" placeholder="例如 D:\照片\珠宝" />
       <button id="pick" type="button">选择</button>
       <button id="index" class="primary" type="button">开始识别</button>
     </div>
@@ -39,7 +39,7 @@
   <section class="find">
     <label for="q">按标签取图</label>
     <div class="find-row">
-      <input id="q" type="search" placeholder="输入标签，例如：海边、猫、暖色" />
+      <input id="q" type="search" placeholder="输入标签，例如：戒指、钻石、玫瑰金" />
       <div class="match" role="group" aria-label="匹配方式">
         <button type="button" data-match="all" class="on">包含全部</button>
         <button type="button" data-match="any">包含任一</button>
@@ -62,7 +62,7 @@
         <p id="modalCaption"></p>
         <label for="modalTags">标签</label>
         <input id="modalTags" type="text" />
-        <p class="hint">用顿号或空格分开。保存后，这些叫法会优先用在后面的图片上。</p>
+        <p class="hint">用顿号或空格分开，按品类、金属、主石来写。保存后，这些叫法会优先用在后面的图片上。</p>
         <div class="actions">
           <button id="saveTags" class="primary" type="button">保存标签</button>
           <button id="resee" type="button">重新识别</button>
@@ -76,7 +76,7 @@
   </div>
 
   <footer>
-    <p>命令行取图 <code>python app.py search 海边 猫</code></p>
+    <p>命令行取图 <code>python app.py search 戒指 钻石</code></p>
   </footer>
   <script src="/app.js"></script>
 </body>

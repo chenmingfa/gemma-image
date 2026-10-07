@@ -1,0 +1,101 @@
+# 珠宝标签体系。改这个文件即可扩展，不必改模型代码。
+# 每一项 id 是 JSON 里的英文值，zh 是给模型看的中文，en 是别名。
+# 模型输出 id。中文或英文别名会在解析时收成 id。
+version: 1
+
+axes:
+  category:
+    multiple: false
+    options:
+      - {id: ring, zh: 戒指, en: ring}
+      - {id: necklace, zh: 项链, en: necklace}
+      - {id: earring, zh: 耳环, en: earring}
+      - {id: bracelet, zh: 手链, en: bracelet}
+      - {id: bangle, zh: 手镯, en: bangle}
+      - {id: brooch, zh: 胸针, en: brooch}
+      - {id: pendant, zh: 吊坠, en: pendant}
+      - {id: anklet, zh: 脚链, en: anklet}
+
+  material:
+    multiple: true
+    options:
+      - {id: gold, zh: 黄金, en: gold}
+      - {id: white_gold, zh: 白金, en: white gold}
+      - {id: rose_gold, zh: 玫瑰金, en: rose gold}
+      - {id: platinum, zh: 铂金, en: platinum}
+      - {id: silver, zh: 银, en: silver}
+      - {id: titanium, zh: 钛钢, en: titanium}
+      - {id: diamond, zh: 钻石, en: diamond}
+      - {id: ruby, zh: 红宝石, en: ruby}
+      - {id: sapphire, zh: 蓝宝石, en: sapphire}
+      - {id: emerald, zh: 祖母绿, en: emerald}
+      - {id: pearl, zh: 珍珠, en: pearl}
+      - {id: jade, zh: 翡翠, en: jade}
+      - {id: agate, zh: 玛瑙, en: agate}
+      - {id: crystal, zh: 水晶, en: crystal}
+
+  cut:
+    multiple: false
+    nullable: true
+    options:
+      - {id: brilliant, zh: 圆形明亮式, en: brilliant}
+      - {id: princess, zh: 公主方, en: princess}
+      - {id: emerald, zh: 祖母绿式, en: emerald cut}
+      - {id: oval, zh: 椭圆, en: oval}
+      - {id: pear, zh: 水滴, en: pear}
+      - {id: marquise, zh: 马眼, en: marquise}
+      - {id: heart, zh: 心形, en: heart}
+
+  style:
+    multiple: true
+    options:
+      - {id: classic, zh: 经典, en: classic}
+      - {id: vintage, zh: 复古, en: vintage}
+      - {id: modern, zh: 现代, en: modern}
+      - {id: minimalist, zh: 极简, en: minimalist}
+      - {id: luxury, zh: 奢华, en: luxury}
+      - {id: bohemian, zh: 波西米亚, en: bohemian}
+      - {id: chinese, zh: 国风, en: chinese}
+      - {id: hongkong, zh: 港风, en: hongkong}
+      - {id: japanese, zh: 日系, en: japanese}
+
+  occasion:
+    multiple: true
+    options:
+      - {id: daily, zh: 日常, en: daily}
+      - {id: wedding, zh: 婚戒, en: wedding}
+      - {id: engagement, zh: 订婚, en: engagement}
+      - {id: evening, zh: 晚宴, en: evening}
+      - {id: gift, zh: 礼物, en: gift}
+      - {id: anniversary, zh: 纪念日, en: anniversary}
+
+  background:
+    multiple: false
+    options:
+      - {id: solid, zh: 纯色, en: solid}
+      - {id: gradient, zh: 渐变, en: gradient}
+      - {id: scene, zh: 场景, en: scene}
+
+  angle:
+    multiple: false
+    options:
+      - {id: front, zh: 正面, en: front}
+      - {id: side, zh: 侧面, en: side}
+      - {id: 45_degree, zh: 45度, en: 45 degree}
+      - {id: top, zh: 俯视, en: top}
+
+  lighting:
+    multiple: false
+    options:
+      - {id: soft, zh: 柔光, en: soft}
+      - {id: hard, zh: 硬光, en: hard}
+      - {id: highlight, zh: 高光, en: highlight}
+      - {id: matte, zh: 哑光, en: matte}
+
+# 可选扩展轴。出现在 JSON 的 extras 里，例如 extras.motif = ["floral"]。
+# extra_axes:
+#   motif:
+#     multiple: true
+#     options:
+#       - {id: floral, zh: 花卉, en: floral}
+extra_axes: {}
