@@ -94,6 +94,38 @@ axes:
       - {id: bead_anklet, zh: 珠串脚链, en: bead anklet, categories: [anklet]}
       - {id: charm_anklet, zh: 吊饰脚链, en: charm anklet, categories: [anklet]}
 
+  motif:
+    multiple: true
+    options:
+      - {id: floral, zh: 花朵, en: flower}
+      - {id: leaf, zh: 叶子, en: leaf}
+      - {id: butterfly, zh: 蝴蝶, en: butterfly}
+      - {id: star, zh: 星星, en: star}
+      - {id: heart, zh: 爱心, en: heart}
+      - {id: cross, zh: 十字, en: cross}
+      - {id: lock, zh: 锁, en: lock}
+      - {id: animal, zh: 动物, en: animal}
+      - {id: zodiac, zh: 生肖, en: zodiac}
+      - {id: bead, zh: 珠子, en: bead}
+      - {id: chain, zh: 链条, en: chain}
+      - {id: geometric, zh: 几何, en: geometric}
+      - {id: letter, zh: 字母, en: letter}
+      - {id: plain, zh: 素面, en: plain}
+
+  fineness:
+    multiple: true
+    options:
+      - {id: pure_gold, zh: 足金, en: pure gold}
+      - {id: gold_999, zh: 千足金, en: 999 gold}
+      - {id: k18, zh: 18K, en: 18k}
+      - {id: k14, zh: 14K, en: 14k}
+      - {id: k9, zh: 9K, en: 9k}
+      - {id: pure_silver, zh: 足银, en: pure silver}
+      - {id: silver_925, zh: 925银, en: 925 silver}
+      - {id: pt950, zh: PT950, en: pt950}
+      - {id: pt900, zh: PT900, en: pt900}
+      - {id: unknown, zh: 成色不清, en: unknown fineness}
+
   style:
     multiple: true
     options:

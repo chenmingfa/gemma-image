@@ -16,6 +16,8 @@ SAMPLE = {
     "material": [{"name": "gold", "confidence": 0.9}, {"name": "diamond", "confidence": 0.88}],
     "cut": {"name": "brilliant", "confidence": 0.85},
     "design": ["solitaire"],
+    "motif": ["floral"],
+    "fineness": ["k18"],
     "style": ["luxury", "classic"],
     "occasion": ["wedding", "engagement"],
     "color": {"primary": "#FFD700", "secondary": ["#FFFFFF"]},
@@ -65,6 +67,8 @@ class TaggerTests(unittest.TestCase):
         self.assertEqual(tags.material[0].confidence, 0.9)
         self.assertEqual(tags.color.secondary, ["#FFFFFF"])
         self.assertEqual(tags.design, ["solitaire"])
+        self.assertEqual(tags.motif, ["floral"])
+        self.assertEqual(tags.fineness, ["k18"])
         shaped = json.loads(json.dumps(SAMPLE))
         shaped["design"] = ["光环戒"]
         self.assertEqual(parse_tags(shaped, self.taxonomy).design, ["halo"])
@@ -98,8 +102,10 @@ axes:
     multiple: true
     options:
       - {id: solitaire, zh: 单石戒, en: solitaire, categories: [ring]}
+  motif: {multiple: true, options: [{id: plain, zh: 素面, en: plain}]}
+  fineness: {multiple: true, options: [{id: unknown, zh: 成色不清, en: unknown}]}
 extra_axes:
-  motif: {multiple: true, options: [{id: floral, zh: 花卉, en: floral}]}
+  pattern: {multiple: true, options: [{id: floral, zh: 花卉, en: floral}]}
 """
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "tags.yaml"
@@ -112,9 +118,13 @@ extra_axes:
         payload["occasion"] = ["daily"]
         payload["visual"] = {"background": "solid", "angle": "front", "lighting": "soft"}
         payload["design"] = ["solitaire"]
-        payload["extras"] = {"motif": ["花卉"]}
+        payload["motif"] = ["素面"]
+        payload["fineness"] = ["成色不清"]
+        payload["extras"] = {"pattern": ["花卉"]}
         tags = parse_tags(payload, taxonomy)
-        self.assertEqual(tags.extras["motif"], ["floral"])
+        self.assertEqual(tags.motif, ["plain"])
+        self.assertEqual(tags.fineness, ["unknown"])
+        self.assertEqual(tags.extras["pattern"], ["floral"])
 
     def test_retry_then_accept(self):
         good = json.dumps(SAMPLE, ensure_ascii=False)

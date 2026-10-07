@@ -71,6 +71,8 @@ class JewelryTags(BaseModel):
     material: list[MaterialTag] = Field(min_length=1)
     cut: CutTag | None
     design: list[str] = Field(min_length=1)
+    motif: list[str] = Field(min_length=1)
+    fineness: list[str] = Field(min_length=1)
     style: list[str] = Field(min_length=1)
     occasion: list[str] = Field(min_length=1)
     color: ColorTag
@@ -160,7 +162,14 @@ def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
         allowed = "、".join(
             option.zh for option in taxonomy.axis("design").options if not option.categories or main in option.categories
         )
-        raise ValueError(f"款式形状 { '、'.join(mismatched) } 和品类 {main} 不符。这一类可以用：{allowed}")
+        raise ValueError("款式形状 " + "、".join(mismatched) + f" 和品类 {main} 不符。这一类可以用：{allowed}")
+
+    motif = taxonomy.resolve_many("motif", data.get("motif"))
+    if not motif:
+        raise ValueError("motif 至少要有一个物体；没有纹样就写 plain")
+    fineness = taxonomy.resolve_many("fineness", data.get("fineness"))
+    if not fineness:
+        raise ValueError("fineness 至少要有一个成色；看不清就写 unknown")
 
     color = data.get("color") or {}
     if isinstance(color, str):
@@ -193,6 +202,8 @@ def normalize_payload(data: dict, taxonomy: Taxonomy) -> dict[str, Any]:
         "material": material_items,
         "cut": cut,
         "design": design,
+        "motif": motif,
+        "fineness": fineness,
         "style": taxonomy.resolve_many("style", data.get("style")),
         "occasion": taxonomy.resolve_many("occasion", data.get("occasion")),
         "color": {"primary": color.get("primary"), "secondary": secondary},

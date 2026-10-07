@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from gemma import find_ollama, ollama_status, pull_model
+from gemma import find_ollama, missing_style_tags, ollama_status, pull_model
 from images import write_thumb
 from indexer import cancel_index, job_snapshot, start_index
 from store import ROOT, get_library
@@ -187,6 +187,10 @@ class Handler(BaseHTTPRequestHandler):
                     from store import tokenize
 
                     tags = tokenize(tags)
+                missing = missing_style_tags(list(tags))
+                if missing:
+                    self._json(400, {"error": "这张款式还要写上：" + "、".join(missing)})
+                    return
                 item = get_library().set_user_tags(image_id, list(tags))
                 if item is None:
                     self._json(404, {"error": "图片不在库里"})

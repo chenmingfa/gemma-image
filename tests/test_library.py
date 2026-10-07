@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from gemma import choose_model, parse_recognition
+from gemma import RecognizeError, choose_model, missing_style_tags, parse_recognition
 from store import Library, folder_hint, normalize_tag
 
 
@@ -115,11 +115,12 @@ class LibraryTests(unittest.TestCase):
         caption, tags = parse_recognition("说明：一只白猫坐在窗台\n标签：猫、窗台、暖光")
         self.assertEqual(caption, "一只白猫坐在窗台")
         self.assertEqual(tags, ["猫", "窗台", "暖光"])
-        caption, tags = parse_recognition("说明：玫瑰金钻戒\n标签：钻戒、玫瑰金、圆形、爪镶、暖光")
-        self.assertEqual(caption, "玫瑰金钻戒")
-        self.assertEqual(tags, ["戒指", "玫瑰金", "钻石", "圆形", "爪镶", "暖光"])
-        _, shaped = parse_recognition("说明：玫瑰金光环钻戒\n标签：钻戒、光环戒、玫瑰金、圆形")
-        self.assertEqual(shaped[:4], ["戒指", "光环戒", "玫瑰金", "钻石"])
+        with self.assertRaises(RecognizeError):
+            parse_recognition("说明：玫瑰金钻戒\n标签：钻戒、玫瑰金、圆形、爪镶、暖光")
+        _, shaped = parse_recognition("说明：玫瑰金光环钻戒\n标签：钻戒、光环戒、花朵、18K、玫瑰金、圆形")
+        self.assertEqual(shaped[:4], ["戒指", "光环戒", "花朵", "18K"])
+        self.assertEqual(missing_style_tags(["戒指", "光环戒"]), ["物体", "成色"])
+        self.assertEqual(missing_style_tags(["猫", "窗台"]), [])
         with self.assertRaises(Exception):
             parse_recognition("这张图很好看，但没有按格式写。")
         self.assertEqual(choose_model(["llama3", "gemma3:12b"]), "gemma3:12b")

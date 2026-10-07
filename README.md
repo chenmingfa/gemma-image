@@ -61,6 +61,8 @@ results = tagger.tag_many(["a.jpg", "b.png"], batch_size=2, workers=4)
   "material": [{"name": "gold", "confidence": 0.9}, {"name": "diamond", "confidence": 0.88}],
   "cut": {"name": "brilliant", "confidence": 0.85},
   "design": ["solitaire"],
+  "motif": ["floral"],
+  "fineness": ["k18"],
   "style": ["luxury", "classic"],
   "occasion": ["wedding", "engagement"],
   "color": {"primary": "#FFD700", "secondary": ["#FFFFFF"]},

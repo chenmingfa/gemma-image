@@ -32,7 +32,9 @@ _DESIGN_TAGS = tuple(word for _, words in DESIGN_BY_CATEGORY for word in words)
 JEWELRY_AXES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("品类", ("戒指", "项链", "耳环", "耳钉", "手链", "手镯", "吊坠", "胸针", "脚链")),
     ("款式", _DESIGN_TAGS),
-    ("金属", ("黄金", "足金", "K金", "玫瑰金", "白金", "铂金", "银")),
+    ("物体", ("花朵", "叶子", "蝴蝶", "星星", "爱心", "十字", "锁", "动物", "生肖", "珠子", "链条", "几何", "字母", "素面")),
+    ("成色", ("足金", "千足金", "18K", "14K", "9K", "足银", "925银", "PT950", "PT900", "成色不清")),
+    ("金属", ("黄金", "K金", "玫瑰金", "白金", "铂金", "银")),
     ("主石", ("钻石", "翡翠", "珍珠", "红宝石", "蓝宝石", "祖母绿", "玉石", "水晶", "玛瑙")),
     ("形状", ("圆形", "水滴", "心形", "方形", "椭圆", "梨形")),
     ("工艺", ("爪镶", "六爪", "包镶", "密镶", "雕刻", "镂空", "珐琅", "素圈")),
@@ -55,9 +57,9 @@ JEWELRY_ALIASES = {
     "脚镯": ("脚链",),
     "圆钻": ("钻石", "圆形"),
     "水滴形": ("水滴",),
-    "18k": ("K金",),
-    "14k": ("K金",),
-    "pt950": ("铂金",),
+    "18k": ("K金", "18K"),
+    "14k": ("K金", "14K"),
+    "pt950": ("铂金", "PT950"),
 }
 _ALIAS_BY_KEY = {key.casefold(): values for key, values in JEWELRY_ALIASES.items()}
 _AXIS_OF = {
@@ -65,18 +67,23 @@ _AXIS_OF = {
     for index, (_, words) in enumerate(JEWELRY_AXES)
     for word in words
 }
+_CATEGORY_KEYS = {word.casefold() for word in JEWELRY_AXES[0][1]}
+_DESIGN_KEYS = {word.casefold() for word in _DESIGN_TAGS}
+_OBJECT_KEYS = {word.casefold() for word in JEWELRY_AXES[2][1]}
+_FINENESS_KEYS = {word.casefold() for word in JEWELRY_AXES[3][1]}
 
 
 def _jewelry_prompt() -> str:
     lines = [
         "请看这张图片，按珠宝检索来写标签。只输出下面两行，不要 Markdown，不要解释。",
         "说明：一句简体中文，不超过40个字，先写珠宝本身",
-        "标签：戒指、光环戒、玫瑰金、钻石、圆形、爪镶、婚庆",
+        "标签：戒指、光环戒、花朵、18K、玫瑰金、钻石、圆形、爪镶、婚庆",
         "",
         "标签用顿号「、」分开，8 到 16 个，每个 2 到 6 个字。",
-        "顺序固定：品类、款式、金属、主石、形状、工艺、风格。背景和佩戴放在最后。",
-        "看得到的珠宝必须先写品类，再写至少一个款式形状。款式只能用该品类下面的词。",
-        "看不清的金属、主石、克拉数不要写。",
+        "顺序固定：品类、款式、物体、成色、金属、主石、形状、工艺、风格。背景和佩戴放在最后。",
+        "有珠宝时必须写齐四项：品类、款式形状、物体、成色。款式只能用该品类下面的词。",
+        "物体写款式上能看见的纹样或构件；没有纹样就写素面。",
+        "成色写印记或能确认的纯度。看不清就写成色不清，不要猜 K 数或克拉。",
     ]
     for name, words in JEWELRY_AXES:
         if name == "款式":
@@ -84,7 +91,7 @@ def _jewelry_prompt() -> str:
             for category, shapes in DESIGN_BY_CATEGORY:
                 lines.append(f"{category}：{'、'.join(shapes)}。")
             continue
-        verb = "只用" if name in {"品类", "金属", "主石"} else "尽量用"
+        verb = "必须写" if name in {"品类", "物体", "成色"} else ("只用" if name in {"金属", "主石"} else "尽量用")
         lines.append(f"{name}{verb}：{'、'.join(words)}。")
     lines.append("没有珠宝时，标签只写：无珠宝。")
     lines.append("上面的戒指、玫瑰金只是格式例子，必须改成这张图的内容，不要照抄。")
@@ -186,27 +193,30 @@ def build_prompt(vocabulary: list[str], hint: str) -> str:
 
 
 def recognize(image_jpeg: bytes, vocabulary: list[str], hint: str, model: str) -> tuple[str, list[str]]:
-    payload = {
-        "model": model,
-        "stream": False,
-        "keep_alive": "30m",
-        "messages": [
-            {
-                "role": "user",
-                "content": build_prompt(vocabulary, hint),
-                "images": [_b64(image_jpeg)],
-            }
-        ],
-        "options": {"temperature": 0.2, "num_predict": 400},
-    }
+    note = ""
     last_error: Exception | None = None
-    for _ in range(2):
+    image = _b64(image_jpeg)
+    for _ in range(3):
+        payload = {
+            "model": model,
+            "stream": False,
+            "keep_alive": "30m",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": build_prompt(vocabulary, hint) + note,
+                    "images": [image],
+                }
+            ],
+            "options": {"temperature": 0.2, "num_predict": 480},
+        }
         try:
             data = _post_json("/api/chat", payload, timeout=300)
             content = ((data.get("message") or {}).get("content")) or ""
             return parse_recognition(content)
         except RecognizeError as exc:
             last_error = exc
+            note = f"\n上次没有通过：{exc}。补齐品类、款式形状、物体、成色后再输出两行。"
         except GemmaError:
             raise
     raise RecognizeError(str(last_error) if last_error else "没有识别出标签")
@@ -219,11 +229,34 @@ def parse_recognition(text: str) -> tuple[str, list[str]]:
         caption = _clean_caption(data.get("caption") or data.get("说明") or data.get("画面") or "")
         tags = _collect_tags(data.get("tags") if "tags" in data else data.get("标签"))
         if tags:
-            return caption, arrange_jewelry_tags(tags)
+            return caption, _finish_tags(tags)
     caption, tags = _parse_labeled_lines(raw)
     if tags:
-        return caption, arrange_jewelry_tags(tags)
+        return caption, _finish_tags(tags)
     raise RecognizeError("没有得到标签")
+
+
+def missing_style_tags(tags: list[str]) -> list[str]:
+    """有品类时，款式形状、物体、成色也必须有。"""
+    keys = {tag.casefold() for tag in tags}
+    if not keys or "无珠宝" in keys or not (keys & _CATEGORY_KEYS):
+        return []
+    missing = []
+    if not (keys & _DESIGN_KEYS):
+        missing.append("款式形状")
+    if not (keys & _OBJECT_KEYS):
+        missing.append("物体")
+    if not (keys & _FINENESS_KEYS):
+        missing.append("成色")
+    return missing
+
+
+def _finish_tags(tags: list[str]) -> list[str]:
+    ordered = arrange_jewelry_tags(tags)
+    missing = missing_style_tags(ordered)
+    if missing:
+        raise RecognizeError("这张款式还缺标签：" + "、".join(missing))
+    return ordered
 
 
 def arrange_jewelry_tags(tags: list[str]) -> list[str]:

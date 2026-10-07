@@ -6,7 +6,7 @@ import os
 import threading
 from pathlib import Path
 
-from gemma import ModelMissing, OllamaUnavailable, image_hint, recognize, require_model
+from gemma import ModelMissing, OllamaUnavailable, image_hint, missing_style_tags, recognize, require_model
 from images import model_jpeg
 from store import get_library
 
@@ -96,7 +96,7 @@ def index_file(path: Path, model: str, force: bool = False, respect_user: bool =
         library.save_error(path, mtime=stat.st_mtime, size=stat.st_size, message="文件超过 40MB")
         return "error"
     existing = library.get_by_path(path)
-    if _unchanged(existing, stat):
+    if _unchanged(library, existing, stat):
         if not force:
             return "skipped"
         if existing["user_edited"] and respect_user:
@@ -142,10 +142,15 @@ def list_images(folder: Path) -> list[Path]:
     return files
 
 
-def _unchanged(existing: dict | None, stat: os.stat_result) -> bool:
+def _unchanged(library, existing: dict | None, stat: os.stat_result) -> bool:
     if not existing or existing.get("error") or not existing.get("caption"):
         return False
-    return abs(float(existing["mtime"]) - stat.st_mtime) < 0.001 and int(existing["size"]) == stat.st_size
+    if abs(float(existing["mtime"]) - stat.st_mtime) >= 0.001 or int(existing["size"]) != stat.st_size:
+        return False
+    item = library.get(existing["id"])
+    if item and missing_style_tags(item["tags"]):
+        return False
+    return True
 
 
 def _run(folder: Path, force: bool) -> None:
