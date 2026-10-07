@@ -84,7 +84,7 @@ def _index_cli(folder: str, force: bool) -> int:
 
 
 def _search_cli(tags: list[str], match: str) -> int:
-    found = get_library().search(" ".join(tags), match)
+    found = get_library().search(" ".join(tags), match, limit=None)
     images = found["images"]
     print(f"{found['total']} 张")
     for item in images:

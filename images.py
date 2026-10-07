@@ -34,9 +34,17 @@ def model_jpeg(path: str | Path, max_side: int = 768) -> tuple[bytes, int, int]:
     return buf.getvalue(), width, height
 
 
-def write_thumb(src: str | Path, dest: str | Path, max_side: int = 520) -> None:
-    image = open_rgb(src)
-    image.thumbnail((max_side, max_side))
-    target = Path(dest)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    image.save(target, format="JPEG", quality=82)
+def write_thumb(src: str | Path, dest: str | Path, max_side: int = 384) -> None:
+    """缩略图按目标尺寸解码，避免每张卡片都展开整张原图。"""
+    Image, ImageOps = pillow()
+    with Image.open(src) as im:
+        if im.format == "JPEG":
+            im.draft("RGB", (max_side, max_side))
+        fixed = ImageOps.exif_transpose(im) or im
+        if getattr(fixed, "is_animated", False):
+            fixed.seek(0)
+        image = fixed.convert("RGB")
+        image.thumbnail((max_side, max_side), Image.Resampling.BILINEAR)
+        target = Path(dest)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        image.save(target, format="JPEG", quality=72)

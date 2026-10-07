@@ -41,6 +41,44 @@ class LibraryTests(unittest.TestCase):
         by_caption = self.db.search("傍晚")
         self.assertEqual(by_caption["images"][0]["filename"], "sea.jpg")
 
+    def test_search_pages_without_checking_every_file(self):
+        paths = []
+        for index in range(3):
+            path = Path(self.tmp.name) / f"p{index}.jpg"
+            path.write_bytes(b"x")
+            paths.append(path)
+            self.db.save_success(
+                path, mtime=1, size=1, width=1, height=1,
+                caption=str(index), tags=["图"], model="gemma3:4b",
+            )
+        os.remove(paths[0])
+        first = self.db.search("", limit=2, offset=0)
+        self.assertEqual(first["total"], 3)
+        self.assertEqual(len(first["images"]), 2)
+        self.assertTrue(first["truncated"])
+        self.assertNotIn("missing", first["images"][0])
+        rest = self.db.search("", limit=2, offset=2)
+        self.assertEqual(len(rest["images"]), 1)
+        self.assertFalse(rest["truncated"])
+        seen = {item["id"] for item in first["images"] + rest["images"]}
+        self.assertEqual(len(seen), 3)
+        tagged = self.db.search("图", "all", limit=2, offset=0)
+        self.assertEqual(tagged["total"], 3)
+        self.assertEqual(len(tagged["images"]), 2)
+
+    def test_thumb_stays_within_card_size(self):
+        from PIL import Image
+
+        from images import write_thumb
+
+        src = Path(self.tmp.name) / "big.jpg"
+        Image.new("RGB", (2400, 1600), (20, 80, 140)).save(src, quality=90)
+        dest = Path(self.tmp.name) / "thumb.jpg"
+        write_thumb(src, dest)
+        with Image.open(dest) as im:
+            self.assertLessEqual(max(im.size), 384)
+            self.assertEqual(im.format, "JPEG")
+
     def test_user_tags_replace_and_rank(self):
         saved = self.db.save_success(
             self.photo, mtime=1, size=4, width=None, height=None,

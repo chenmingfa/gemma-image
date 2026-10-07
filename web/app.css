@@ -209,7 +209,11 @@ input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-of
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
 }
+
+.more { height: 1px; }
 
 .card img, .broken {
   width: 100%;

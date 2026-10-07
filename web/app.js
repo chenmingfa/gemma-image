@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
 const FOLDER_KEY = "gemma-image-lib-folder";
+const PAGE = 48;
 let matchMode = "all";
 let items = [];
 let cloud = [];
@@ -8,6 +9,11 @@ let libraryCount = 0;
 let activeId = null;
 let jobRunning = false;
 let searchTimer = 0;
+let searchGen = 0;
+let offset = 0;
+let total = 0;
+let loadingMore = false;
+let thumbObserver = null;
 
 function tokensOf(value) {
   return String(value || "").split(/[\s,，、;；]+/).filter(Boolean);
@@ -67,45 +73,117 @@ function renderCloud() {
   }).join("");
 }
 
-function renderGrid() {
+function cardHtml(item) {
+  const version = encodeURIComponent(item.indexed_at || "");
+  const visual = item.missing
+    ? `<div class="broken">文件不在了</div>`
+    : `<img data-src="/api/images/${item.id}/thumb?v=${version}" alt="${esc(item.caption || item.filename)}" decoding="async" />`;
+  const edited = item.user_edited ? `<span class="edited">改过</span>` : "";
+  return `<button type="button" class="card" data-id="${item.id}">
+    ${visual}
+    <span class="meta">
+      <strong>${esc(item.filename)}${edited}</strong>
+      <span class="tags">${esc(item.tags.join("、"))}</span>
+    </span>
+  </button>`;
+}
+
+function observeThumbs(root) {
+  if (!thumbObserver) {
+    thumbObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const img = entry.target;
+        if (img.dataset.src && !img.getAttribute("src")) {
+          img.src = img.dataset.src;
+        }
+        thumbObserver.unobserve(img);
+      }
+    }, { rootMargin: "480px" });
+  }
+  for (const img of root.querySelectorAll("img[data-src]")) {
+    if (!img.getAttribute("src")) thumbObserver.observe(img);
+  }
+}
+
+function updateCard(item) {
+  const card = document.querySelector(`.card[data-id="${item.id}"]`);
+  if (!card) return;
+  const strong = card.querySelector("strong");
+  if (strong) {
+    strong.textContent = item.filename;
+    if (item.user_edited) {
+      const mark = document.createElement("span");
+      mark.className = "edited";
+      mark.textContent = "改过";
+      strong.appendChild(mark);
+    }
+  }
+  const tags = card.querySelector(".tags");
+  if (tags) tags.textContent = item.tags.join("、");
+}
+
+function paintGrid(batch, append) {
   const query = $("q").value.trim();
+  const grid = $("grid");
   const empty = $("empty");
+  const more = $("more");
   if (!items.length) {
-    $("grid").innerHTML = "";
+    grid.innerHTML = "";
     empty.hidden = false;
     empty.textContent = libraryCount === 0 && !query
       ? "选一个文件夹，Gemma 3 会把看到的内容写成标签。"
       : "这几个标签还没有对应的图片。";
     $("count").textContent = "";
+    more.hidden = true;
     return;
   }
   empty.hidden = true;
-  $("count").textContent = items.length === 1 ? "1 张" : `${items.length} 张`;
-  $("grid").innerHTML = items.map((item) => {
-    const visual = item.missing
-      ? `<div class="broken">文件不在了</div>`
-      : `<img src="/api/images/${item.id}/thumb" alt="${esc(item.caption || item.filename)}" />`;
-    const edited = item.user_edited ? `<span class="edited">改过</span>` : "";
-    return `<button type="button" class="card" data-id="${item.id}">
-      ${visual}
-      <span class="meta">
-        <strong>${esc(item.filename)}${edited}</strong>
-        <span class="tags">${esc(item.tags.join("、"))}</span>
-      </span>
-    </button>`;
-  }).join("");
+  if (append) {
+    if (batch.length) grid.insertAdjacentHTML("beforeend", batch.map(cardHtml).join(""));
+  } else {
+    grid.innerHTML = items.map(cardHtml).join("");
+  }
+  $("count").textContent = items.length < total
+    ? `已显示 ${items.length} / ${total} 张`
+    : (total === 1 ? "1 张" : `${total} 张`);
+  more.hidden = items.length >= total;
+  observeThumbs(grid);
 }
 
-async function runSearch() {
+async function runSearch(options = {}) {
+  const append = options.append === true;
+  if (!append) searchGen += 1;
+  const gen = searchGen;
   const query = $("q").value.trim();
-  const data = await readJson(await fetch(`/api/search?q=${encodeURIComponent(query)}&match=${matchMode}`));
-  items = data.images;
-  if (!query) libraryCount = data.total;
-  renderCloud();
-  renderGrid();
-  if (data.truncated) {
-    $("count").textContent = `显示前 ${data.images.length} 张，共 ${data.total} 张`;
+  const start = append ? offset : 0;
+  loadingMore = true;
+  try {
+    const data = await readJson(await fetch(
+      `/api/search?q=${encodeURIComponent(query)}&match=${matchMode}&limit=${PAGE}&offset=${start}`
+    ));
+    if (gen !== searchGen) return;
+    const batch = data.images;
+    items = append ? items.concat(batch) : batch;
+    offset = start + batch.length;
+    total = data.total;
+    if (!query) libraryCount = data.total;
+    renderCloud();
+    paintGrid(batch, append);
+  } finally {
+    if (gen === searchGen) loadingMore = false;
   }
+  if (gen === searchGen) {
+    const more = $("more");
+    if (!more.hidden && more.getBoundingClientRect().top < window.innerHeight + 600) {
+      loadMore();
+    }
+  }
+}
+
+function loadMore() {
+  if (loadingMore || offset >= total) return;
+  runSearch({ append: true });
 }
 
 function toggleTag(tag) {
@@ -238,6 +316,19 @@ $("grid").addEventListener("click", (event) => {
   if (card) openModal(Number(card.dataset.id));
 });
 
+$("grid").addEventListener("error", (event) => {
+  const img = event.target;
+  if (!img || img.tagName !== "IMG") return;
+  const broken = document.createElement("div");
+  broken.className = "broken";
+  broken.textContent = "文件不在了";
+  img.replaceWith(broken);
+}, true);
+
+new IntersectionObserver((entries) => {
+  if (entries.some((entry) => entry.isIntersecting)) loadMore();
+}, { rootMargin: "600px" }).observe($("more"));
+
 $("closeModal").addEventListener("click", closeModal);
 $("modal").addEventListener("click", (event) => {
   if (event.target.id === "modal") closeModal();
@@ -263,8 +354,8 @@ $("saveTags").addEventListener("click", async () => {
     const index = items.findIndex((entry) => entry.id === activeId);
     if (index >= 0) items[index] = data.image;
     $("modalMsg").textContent = "标签已保存";
+    updateCard(data.image);
     await loadCloud();
-    renderGrid();
   } catch (error) {
     $("modalMsg").textContent = error.message;
   } finally {
@@ -284,8 +375,8 @@ $("resee").addEventListener("click", async () => {
     $("modalCaption").textContent = data.image.caption || "";
     $("modalTags").value = data.image.tags.join("、");
     $("modalMsg").textContent = "已按当前画面更新";
+    updateCard(data.image);
     await loadCloud();
-    renderGrid();
   } catch (error) {
     $("modalMsg").textContent = error.message;
   } finally {

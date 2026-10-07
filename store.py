@@ -92,6 +92,7 @@ class Library:
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode = WAL")
         self.conn.execute("PRAGMA busy_timeout = 5000")
+        self._catalog: list[dict] | None = None
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -129,6 +130,7 @@ class Library:
             );
 
             CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
+            CREATE INDEX IF NOT EXISTS idx_images_recent ON images(indexed_at DESC, id DESC);
             """
         )
         self.conn.commit()
@@ -181,28 +183,44 @@ class Library:
             ).fetchall()
         return [{"name": row["name"], "count": row["count"]} for row in rows]
 
-    def search(self, query: str, match: str = "all", limit: int = 300) -> dict:
+    def search(
+        self,
+        query: str,
+        match: str = "all",
+        limit: int | None = 300,
+        offset: int = 0,
+    ) -> dict:
         tokens = tokenize(query)
         mode = "any" if match == "any" else "all"
-        with self._lock:
-            images = self._load_unlocked()
-        matched = []
-        for item in images:
-            score = _score(item, tokens)
-            if tokens and mode == "all" and score < len(tokens):
-                continue
-            if tokens and mode == "any" and score <= 0:
-                continue
-            item["score"] = score
-            item["missing"] = not os.path.exists(item["path"])
-            matched.append(item)
-        if tokens:
+        offset = max(0, int(offset))
+        if not tokens:
+            with self._lock:
+                matched, total = self._page_recent_unlocked(limit, offset)
+        else:
+            with self._lock:
+                images = self._catalog_unlocked()
+            matched = []
+            for item in images:
+                score = _score(item, tokens)
+                if mode == "all" and score < len(tokens):
+                    continue
+                if mode == "any" and score <= 0:
+                    continue
+                view = dict(item)
+                view["score"] = score
+                matched.append(view)
             matched.sort(key=lambda item: (item["score"], item["indexed_at"] or ""), reverse=True)
-        total = len(matched)
+            total = len(matched)
+            if limit is None:
+                matched = matched[offset:]
+            else:
+                matched = matched[offset:offset + max(1, int(limit))]
+        shown = offset + len(matched)
         return {
-            "images": matched[:limit],
+            "images": matched,
             "total": total,
-            "truncated": total > limit,
+            "offset": offset,
+            "truncated": shown < total,
             "query": tokens,
             "match": mode,
         }
@@ -233,6 +251,7 @@ class Library:
                 error=None,
             )
             self._replace_tags(image_id, tags, source)
+            self._catalog = None
             self.conn.commit()
             row = self.conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
             item = self._public(row, self._tags_for(image_id))
@@ -264,6 +283,7 @@ class Library:
                     user_edited=0,
                     error=text,
                 )
+            self._catalog = None
             self.conn.commit()
 
     def set_user_tags(self, image_id: int, tags: list[str]) -> dict | None:
@@ -281,6 +301,7 @@ class Library:
                 (_now(), image_id),
             )
             self._replace_tags(image_id, clean, "user")
+            self._catalog = None
             self.conn.commit()
             row = self.conn.execute("SELECT * FROM images WHERE id = ?", (image_id,)).fetchone()
             item = self._public(row, self._tags_for(image_id))
@@ -291,6 +312,7 @@ class Library:
         with self._lock:
             cur = self.conn.execute("DELETE FROM images WHERE id = ?", (image_id,))
             self._drop_orphan_tags()
+            self._catalog = None
             self.conn.commit()
             return cur.rowcount > 0
 
@@ -395,6 +417,49 @@ class Library:
         ).fetchall()
         return [row["name"] for row in rows]
 
+    def _catalog_unlocked(self) -> list[dict]:
+        if self._catalog is None:
+            self._catalog = self._load_unlocked()
+        return self._catalog
+
+    def _page_recent_unlocked(self, limit: int | None, offset: int) -> tuple[list[dict], int]:
+        total = self.conn.execute(
+            """
+            SELECT COUNT(*) AS n FROM images
+            WHERE caption IS NOT NULL OR user_edited = 1
+            """
+        ).fetchone()["n"]
+        if limit is None:
+            rows = self.conn.execute(
+                """
+                SELECT i.*, t.name AS tag
+                FROM images i
+                LEFT JOIN image_tags it ON it.image_id = i.id
+                LEFT JOIN tags t ON t.id = it.tag_id
+                WHERE i.caption IS NOT NULL OR i.user_edited = 1
+                ORDER BY i.indexed_at DESC, i.id DESC, it.position ASC
+                """
+            ).fetchall()
+            return self._group_rows(rows)[offset:], total
+        size = max(1, int(limit))
+        rows = self.conn.execute(
+            """
+            SELECT i.*, t.name AS tag
+            FROM images i
+            LEFT JOIN image_tags it ON it.image_id = i.id
+            LEFT JOIN tags t ON t.id = it.tag_id
+            WHERE i.id IN (
+                SELECT id FROM images
+                WHERE caption IS NOT NULL OR user_edited = 1
+                ORDER BY indexed_at DESC, id DESC
+                LIMIT ? OFFSET ?
+            )
+            ORDER BY i.indexed_at DESC, i.id DESC, it.position ASC
+            """,
+            (size, offset),
+        ).fetchall()
+        return self._group_rows(rows), total
+
     def _load_unlocked(self) -> list[dict]:
         rows = self.conn.execute(
             """
@@ -406,6 +471,9 @@ class Library:
             ORDER BY i.indexed_at DESC, i.id DESC, it.position ASC
             """
         ).fetchall()
+        return self._group_rows(rows)
+
+    def _group_rows(self, rows: list[sqlite3.Row]) -> list[dict]:
         grouped: list[dict] = []
         current: dict | None = None
         for row in rows:

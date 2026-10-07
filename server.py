@@ -20,6 +20,18 @@ from store import ROOT, get_library
 WEB = ROOT / "web"
 _pull_lock = threading.Lock()
 _pull = {"running": False, "message": "", "ok": None}
+_thumb_slots = threading.Semaphore(2)
+
+
+def _query_int(qs: dict, name: str, default: int, low: int, high: int) -> int:
+    raw = qs.get(name, [None])[0]
+    if raw is None or raw == "":
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(low, min(value, high))
 
 
 def pull_snapshot() -> dict:
@@ -133,7 +145,9 @@ class Handler(BaseHTTPRequestHandler):
             qs = parse_qs(urlparse(self.path).query)
             query = qs.get("q", [""])[0]
             match = qs.get("match", ["all"])[0]
-            self._json(200, get_library().search(query, match))
+            limit = _query_int(qs, "limit", 48, 1, 80)
+            offset = _query_int(qs, "offset", 0, 0, 1_000_000)
+            self._json(200, get_library().search(query, match, limit=limit, offset=offset))
             return
         parts = path.strip("/").split("/")
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "images" and parts[2].isdigit():
@@ -242,18 +256,20 @@ class Handler(BaseHTTPRequestHandler):
         src = Path(item["path"])
         if kind == "file":
             mime = mimetypes.guess_type(src.name)[0] or "application/octet-stream"
-            self._send_file(src, mime)
+            self._send_file(src, mime, cache_control="private, max-age=3600")
             return
         if kind == "thumb":
             dest = ROOT / "data" / "thumbs" / f"{image_id}.jpg"
             try:
                 src_mtime = src.stat().st_mtime
                 if not dest.exists() or dest.stat().st_mtime < src_mtime:
-                    write_thumb(src, dest)
-                self._send_file(dest, "image/jpeg")
+                    with _thumb_slots:
+                        src_mtime = src.stat().st_mtime
+                        if not dest.exists() or dest.stat().st_mtime < src_mtime:
+                            write_thumb(src, dest)
+                self._send_file(dest, "image/jpeg", cache_control="private, max-age=604800")
             except Exception:
-                mime = mimetypes.guess_type(src.name)[0] or "application/octet-stream"
-                self._send_file(src, mime)
+                self._json(404, {"error": "缩略图没有生成"})
             return
         self._json(404, {"error": "没有这个地址"})
 
@@ -276,17 +292,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_file(self, path: Path, content_type: str) -> None:
+    def _send_file(self, path: Path, content_type: str, cache_control: str = "no-cache") -> None:
         if not path.is_file():
             self._json(404, {"error": "文件不在"})
             return
-        data = path.read_bytes()
+        size = path.stat().st_size
         self.send_response(200)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Content-Length", str(size))
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
-        self.wfile.write(data)
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(64 * 1024)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
 
 
 def serve(port: int = 8765, open_browser: bool = True) -> None:
