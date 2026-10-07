@@ -11,19 +11,20 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from store import folder_hint, normalize_tag
+from store import folder_hint, normalize_tag, tokenize
 
 HOST = os.environ.get("GEMMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = "gemma3:4b"
 VISION_CANDIDATES = ("gemma3:4b", "gemma3:12b", "gemma3:27b")
 
-PROMPT = """请识别这张图片，给本地图片库写检索信息。只输出 JSON，不要 Markdown。
-格式：{"caption":"一句话","tags":["标签"]}
+PROMPT = """请看这张图片，写出检索用的说明和标签。只输出下面两行，不要 Markdown，不要解释。
+说明：一句简体中文，不超过40个字，只写画面里看得到的内容
+标签：白猫、窗台、木地板、暖光
 
-caption：一句简体中文，不超过 40 字，只写画面里看得到的内容。
-tags：8 到 12 个简体中文短标签，每个 2 到 8 个字。
+标签行写 8 到 12 个简体中文短标签，用顿号「、」分开。每个标签 2 到 6 个字，单独一个词。
 覆盖确实可见的主体、场景、颜色、材质、风格、动作。
-标签要适合以后搜索，不要用句子，不要重复，不要编造看不清的细节。
+上面的「白猫、窗台」只是格式例子，必须改成这张图里看得到的内容，不要照抄。
+不要把整句说明再写进标签，不要重复，不要编造看不清的细节。
 """
 
 
@@ -121,7 +122,6 @@ def recognize(image_jpeg: bytes, vocabulary: list[str], hint: str, model: str) -
     payload = {
         "model": model,
         "stream": False,
-        "format": "json",
         "keep_alive": "30m",
         "messages": [
             {
@@ -130,7 +130,7 @@ def recognize(image_jpeg: bytes, vocabulary: list[str], hint: str, model: str) -
                 "images": [_b64(image_jpeg)],
             }
         ],
-        "options": {"temperature": 0.2, "num_predict": 280},
+        "options": {"temperature": 0.2, "num_predict": 400},
     }
     last_error: Exception | None = None
     for _ in range(2):
@@ -146,31 +146,58 @@ def recognize(image_jpeg: bytes, vocabulary: list[str], hint: str, model: str) -
 
 
 def parse_recognition(text: str) -> tuple[str, list[str]]:
+    raw = _strip_fence(text)
+    data = _load_object(raw)
+    if data is not None:
+        caption = _clean_caption(data.get("caption") or data.get("说明") or data.get("画面") or "")
+        tags = _collect_tags(data.get("tags") if "tags" in data else data.get("标签"))
+        if tags:
+            return caption, tags
+    caption, tags = _parse_labeled_lines(raw)
+    if tags:
+        return caption, tags
+    raise RecognizeError("没有得到标签")
+
+
+def _strip_fence(text: str) -> str:
     raw = text.strip()
     if raw.startswith("```"):
         raw = re.sub(r"^```(?:json)?", "", raw).strip()
         raw = re.sub(r"```$", "", raw).strip()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        found = re.search(r"\{.*\}", raw, re.S)
-        if not found:
-            raise RecognizeError("模型没有返回 JSON")
+    return raw
+
+
+def _load_object(raw: str) -> dict | None:
+    candidates = [raw]
+    found = re.search(r"\{.*\}", raw, re.S)
+    if found:
+        candidates.append(found.group(0))
+    for candidate in candidates:
         try:
-            data = json.loads(found.group(0))
-        except json.JSONDecodeError as exc:
-            raise RecognizeError("模型返回的 JSON 无法解析") from exc
-    if not isinstance(data, dict):
-        raise RecognizeError("模型返回的不是对象")
-    caption = re.sub(r"\s+", " ", str(data.get("caption") or "")).strip()[:80]
-    raw_tags = data.get("tags")
-    if not isinstance(raw_tags, list):
-        raise RecognizeError("tags 不是数组")
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            return data
+    return None
+
+
+def _clean_caption(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()[:80]
+
+
+def _collect_tags(value: object) -> list[str]:
+    pieces: list[str] = []
+    if isinstance(value, str):
+        pieces = tokenize(value)
+    elif isinstance(value, list):
+        for item in value:
+            pieces.extend(tokenize(str(item)))
     tags: list[str] = []
     seen: set[str] = set()
-    for item in raw_tags:
-        tag = normalize_tag(str(item))
-        if not tag:
+    for piece in pieces:
+        tag = normalize_tag(piece)
+        if not tag or tag in {"标签", "说明"}:
             continue
         key = tag.casefold()
         if key in seen:
@@ -179,8 +206,25 @@ def parse_recognition(text: str) -> tuple[str, list[str]]:
         tags.append(tag)
         if len(tags) >= 12:
             break
-    if not tags:
-        raise RecognizeError("没有得到标签")
+    return tags
+
+
+def _parse_labeled_lines(raw: str) -> tuple[str, list[str]]:
+    caption = ""
+    tags: list[str] = []
+    for line in raw.splitlines():
+        text = line.strip().lstrip("-*• ").strip()
+        if not text:
+            continue
+        parts = re.split(r"[:：]", text, maxsplit=1)
+        if len(parts) != 2:
+            continue
+        name = parts[0].strip().casefold()
+        body = parts[1].strip()
+        if name in {"说明", "caption", "画面", "描述"} and body:
+            caption = _clean_caption(body)
+        elif name in {"标签", "tags", "tag"} and body:
+            tags = _collect_tags(body)
     return caption, tags
 
 
